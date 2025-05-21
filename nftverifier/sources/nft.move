@@ -7,7 +7,7 @@ module nftverifier::nftverifier;
 // https://docs.sui.io/concepts/sui-move-concepts/conventions
 
 
-module nftverifier::verifier;
+module nftverifier::nft;
 use std::string;
 use sui::event;
 use sui::url::{Self, Url};

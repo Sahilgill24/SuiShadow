@@ -1,4 +1,4 @@
 ## SUI Shadow
 
 
-Confedential Resources on the SUI Blockchain .
+Confidential Resources on the SUI Blockchain .
