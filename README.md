@@ -1,7 +1,7 @@
 <center>
 <h1> SUI Shadow </h1>
 
-<img src="./readmeimages/shadow-logo.png" size=600*600>
+<img src="./images/shadow-logo.png" size=600*600>
 </center>
 
 > Sui Shadow is an innovative, privacy-first art platform built on the SUI blockchain, where artists encrypt their work into hidden tiles and mint suspense-filled NFTs. Powered by Key encryption security from Sui `Seal`, each artwork’s AES key is securely generated and released only to legitimate buyers. All encrypted chunks live off-chain in `Walrus`, keeping gas costs minimal and storage unlimited. The artists idendity is verified using `zklogin` as the log-in option on the app . Perfect for creators who want to monetize secret reveals and collectors craving exclusive digital treasures, Sui Shadow turns every purchase into a thrilling unmasking experience backed by robust blockchain security.
@@ -47,7 +47,7 @@ By shifting bulk storage and computation off‐chain, while keeping a tamper‐p
 
 Below is the high‐level sequence of steps for each participant (Seller, Marketplace, Buyer).
 
-<img src="./readmeimages/homepage.png" caption="Home Page">
+<img src="./images/homepage.png" caption="Home Page">
 
 ### 1. Seller Registration and Upload
 
@@ -83,7 +83,7 @@ Below is the high‐level sequence of steps for each participant (Seller, Market
        - `merkle_root` (32-byte) 
    
 
-<img src="./readmeimages/image copy.png" >
+<img src="./images/image copy.png" >
 ---
 
 ### 2. Marketplace Browsing & Purchase
@@ -120,12 +120,12 @@ Below is the high‐level sequence of steps for each participant (Seller, Market
    - Buyer is shown the fully‐revealed, high‐resolution image. They can download it or view it on‐chain.
 
 
-<img src="./readmeimages/image copy 3.png"></img>
+<img src="./images/image copy 3.png"></img>
 ---
 
 ## Architecture
 
-<img src="./readmeimages/image.png"></img>
+<img src="./images/image.png"></img>
 
 The system is divided into four logical layers:
 
