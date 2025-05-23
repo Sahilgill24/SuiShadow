@@ -203,7 +203,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     // #TODO : add this to the escrow list 
 
   }
-  async function fetchescrow(){
+  async function fetchescrow() {
     const data = await client.getObject({
       id: escrowonject,
       options: {
@@ -211,16 +211,16 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
         showType: true,
       }
     })
-    
+
     //@ts-ignore
     console.log('fetching blobs from marketplace', data.data?.content?.fields?.addr);
     //@ts-ignore
-    
+
   }
   const completepayment = async (input: string, name: string) => {
     // payment being completed 
-    // const coin = tx2.splitCoins(tx2.gas, [75000000])
-    // tx2.transferObjects([coin], tx2.pure.address(input));
+    const coin = tx2.splitCoins(tx2.gas, [75000000])
+    tx2.transferObjects([coin], tx2.pure.address(input));
     // const { digest } = await signAndExecuteTransaction({
     //   transaction: tx2,
     //   chain: 'sui:testnet'
@@ -241,6 +241,15 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
       chain: 'sui:testnet'
     });
     console.log("payment transaction:", val.digest);
+    toast.success("Payment to escrow successful!", {
+      description: `Transaction digest: ${val.digest}`,
+      duration: 4000,
+      position: "top-right",
+      action: {
+        label: "SuiScan",
+        onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${val.digest}`, '_blank')
+      },
+    });
     return val.digest;
 
   }
@@ -670,11 +679,11 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
 
                 <div className="space-y-2">
 
-
+                  <Button className='w-full' onClick={async () => await completepayment(account?.address || '0xb9fedd0c0027963e53e7b0ba00d56034bfacea29f06a0adb8cbeddf83b61eaca', nft.name)}>Pay to escrow</Button>
                   {isMarketplace && <Button onClick={handleBuy} className="w-full">
-                    {isBuying ? "Processing..." : `Pay to escrow ${nft.metadata.price/2} SUI`}
+                    {isBuying ? "Processing..." : `Complete Purchase`}
                   </Button>}
-                  <Button className='w-full' onClick={async () => await completepayment(account?.address || '0xb9fedd0c0027963e53e7b0ba00d56034bfacea29f06a0adb8cbeddf83b61eaca', nft.name)}>Complete payment</Button>
+
                   {/* <Button onClick={async () => await fetchescrow()}>Fetch Escrow</Button> */}
                 </div>
 
