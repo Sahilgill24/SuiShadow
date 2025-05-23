@@ -24,7 +24,7 @@
 
 ---
 
-## Introduction
+# Introduction
 
 **Sui Shadow** is a NFT marketplace on the Sui blockchain where artists can sell “hidden” or **obfuscated** images. Instead of minting a clear‐text PNG on-chain, which can be stolen or used to mint NFT's by other people:
 
@@ -99,7 +99,7 @@ The system is divided into four logical layers:
 <!-- ───────────────────────────────────────────────────────────────────────────── -->
 
 
-### Key Components
+
 
 
 ### 1. Zero-Knowledge Login (Enoki)
