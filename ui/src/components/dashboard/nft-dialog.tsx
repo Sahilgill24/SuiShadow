@@ -1,16 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { motion } from "framer-motion"
-import { CheckCircle, Copy, Eye, Lock, Shield } from "lucide-react"
+import { CheckCircle, Copy, Download, Eye, Lock, Shield } from "lucide-react"
 import type { NFT } from "@/lib/types"
-import { generateProof } from "@/lib/sample-data"
-import { usePixelRemover } from "@/hooks/use-pixel-remover"
 import SHA256 from "crypto-js/sha256";
 // here the decryption shall be done 
 interface NFTDialogProps {
@@ -24,8 +21,8 @@ import { getAllowlistedKeyServers, SealClient, SessionKey, type SessionKeyType }
 import { useCurrentAccount, useSignAndExecuteTransaction, useSignPersonalMessage, useSuiClientContext } from "@mysten/dapp-kit"
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client"
 import { Transaction } from "@mysten/sui/transactions"
-import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import axios from "axios"
+import { toast } from "sonner"
 
 function toUint8array(val: string) {
   const encoder = new TextEncoder();
@@ -34,7 +31,6 @@ function toUint8array(val: string) {
 }
 // adding the buying address to the allowlist and this person can then decrypt the data and reconstruct the image .
 export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFTDialogProps) {
-  const [isVerifying, setIsVerifying] = useState(false)
   const [proof, setProof] = useState<string | null>(null)
   const [showProof, setShowProof] = useState(false)
   const [isBuying, setIsBuying] = useState(false)
@@ -52,7 +48,8 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
 
   const allowlistobject = '0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9'
   const packagid = '0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25';
-
+  const escrowpkgid = '0x076f4f1f07cc41180507a25cfaa42d57e01b93930f0c0c349d11758b5f01ff72'
+  const escrowonject = '0xa07fe0d5fb6edb5a6712aeac97e587ae728697e44188038fccbba0790d8960a4'
 
   const sealnewclient = new SealClient({
     //@ts-ignore
@@ -195,15 +192,60 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   }
 
   const payment = async (input: string) => {
-    const coin = tx2.splitCoins(tx2.gas, [150000000])
+    const coin = tx2.splitCoins(tx2.gas, [75000000])
     tx2.transferObjects([coin], tx2.pure.address(input));
     const { digest } = await signAndExecuteTransaction({
       transaction: tx2,
       chain: 'sui:testnet'
     });
     console.log("payment transaction:", digest);
+    return digest;
+    // #TODO : add this to the escrow list 
 
   }
+  async function fetchescrow(){
+    const data = await client.getObject({
+      id: escrowonject,
+      options: {
+        showContent: true,
+        showType: true,
+      }
+    })
+    
+    //@ts-ignore
+    console.log('fetching blobs from marketplace', data.data?.content?.fields?.addr);
+    //@ts-ignore
+    
+  }
+  const completepayment = async (input: string, name: string) => {
+    // payment being completed 
+    // const coin = tx2.splitCoins(tx2.gas, [75000000])
+    // tx2.transferObjects([coin], tx2.pure.address(input));
+    // const { digest } = await signAndExecuteTransaction({
+    //   transaction: tx2,
+    //   chain: 'sui:testnet'
+    // });
+    // console.log("payment transaction:", digest);
+    // return digest;
+
+    tx2.moveCall({
+      target: `${escrowpkgid}::simple_registry::update_registry`,
+      arguments: [
+        tx2.object(escrowonject),
+        tx2.pure.address(input),
+        tx2.pure.string(name),
+      ],
+    })
+    const val = await signAndExecuteTransaction({
+      transaction: tx2,
+      chain: 'sui:testnet'
+    });
+    console.log("payment transaction:", val.digest);
+    return val.digest;
+
+  }
+
+
   const handleBuy = async () => {
     const fetchedData = await NFTfinder();
     console.log("Decoded Data:", fetchedData);
@@ -224,7 +266,19 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     //   arguments: [tx.object(tokenid.data?.[0].coinObjectId), tx.pure.u64(1), tx.pure.address('0x2fe3170d48e0d81e2634ae644e064e261bf36159f5733afc89c2b53f2a3600e3')],
     // })
 
-    payment(fetchedData.addres)
+    const payment2 = await payment(fetchedData.addres)
+    toast.success("Payment to escrow successful!", {
+      description: `Transaction digest: ${payment2}`,
+      duration: 4000,
+      position: "top-right",
+      action: {
+        label: "SuiScan",
+        onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${payment2}`, '_blank')
+      },
+    });
+
+
+
 
     // console.log("Transaction executed with digest:", digest);
     // now the logic for decryption shall come here . 
@@ -285,12 +339,49 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
       uint8[i] = fetchedData.enccoords[i];
     }
     const txbytes = await tx.build({ client, onlyTransactionKind: true })
+
+    try {
+      const decrypteddata = await sealnewclient.decrypt({
+        data: uint8,
+        sessionKey: session_key,
+        txBytes: txbytes,
+
+      });
+      toast.success("Decryption successful!", {
+        description: "The image has been successfully decrypted.",
+        duration: 4000,
+        position: "top-right",
+      });
+    } catch (error) {
+      console.error("Decryption error:", error);
+      toast.error("Decryption failed!", {
+        description: "No Access error,user does not have one or more keys",
+        duration: 4000,
+        position: "top-right",
+      });
+    }
     const decrypteddata = await sealnewclient.decrypt({
       data: uint8,
       sessionKey: session_key,
       txBytes: txbytes,
 
-    })
+    });
+
+    if (decrypteddata) {
+      toast.success("Decryption successful!", {
+        description: "The image has been successfully decrypted.",
+        duration: 4000,
+        position: "top-right",
+      });
+    }
+    else {
+      toast.error("Decryption failed!", {
+        description: "No Access error,user does not have one or more keys",
+        duration: 4000,
+        position: "top-right",
+      });
+      return;
+    }
 
     console.log("Decrypted data:", decrypteddata);
     let string2 = new TextDecoder().decode(decrypteddata);
@@ -312,6 +403,15 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
         const imageResult = await reconstructImage(obfuscatedUrl, blocks, parsedCoords);
         setReconstructedImage(imageResult);
         console.log("Image reconstructed successfully!");
+        toast.success("Image reconstructed successfully!", {
+          description: "The image has been successfully reconstructed.",
+          duration: 5000,
+          position: "top-left",
+        });
+
+
+
+
       } else {
         console.error("Invalid data for reconstruction:", {
           blocksIsArray: Array.isArray(blocks),
@@ -319,6 +419,12 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
           blocks: blocks,
           coords: parsedCoords
         });
+        toast.error("Invalid data for image reconstruction!", {
+          description: "The blocks or coordinates data is not in the expected format.",
+          duration: 1000,
+          position: "top-left",
+        });
+
       }
     }
 
@@ -327,6 +433,42 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const copyProof = () => {
     if (nft.proof || proof) {
       navigator.clipboard.writeText(nft.proof || proof || "")
+    }
+  }
+
+  const downloadReconstructedImage = () => {
+    if (!reconstructedImage) {
+      toast.error("No reconstructed image available", {
+        description: "Please decrypt the NFT first to download the image.",
+        duration: 3000,
+        position: "top-right",
+      });
+      return;
+    }
+
+    try {
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.download = `${nft.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_reconstructed.png`;
+      link.href = reconstructedImage;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Image downloaded successfully!", {
+        description: `${nft.name} has been saved to your device.`,
+        duration: 3000,
+        position: "top-right",
+      });
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Download failed", {
+        description: "There was an error downloading the image. Please try again.",
+        duration: 3000,
+        position: "top-right",
+      });
     }
   }
 
@@ -408,13 +550,24 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5 }}
+                  className="relative"
                 >
-                  <img src={reconstructedImage} alt={`${nft.name} (Reconstructed)`} className="object-cover" />
+                  <img src={reconstructedImage} alt={`${nft.name} (Reconstructed)`} className="object-cover w-full" />
                   <div className="absolute top-3 left-3">
                     <div className="flex items-center gap-2 bg-background/90 rounded-full px-3 py-1">
                       <CheckCircle className="h-3 w-3 text-green-500" />
                       <span className="text-xs text-green-500 font-medium">Decrypted</span>
                     </div>
+                  </div>
+                  <div className="absolute top-3 right-3">
+                    <Button
+                      onClick={downloadReconstructedImage}
+                      size="sm"
+                      className="bg-background/90 hover:bg-background text-foreground rounded-full h-8 w-8 p-0"
+                      title="Download reconstructed image"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </div>
                 </motion.div>
               ) : (
@@ -441,6 +594,25 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
               </div>
               <div className="text-3xl font-bold text-primary">{nft.metadata.price} SUI</div>
             </div>
+
+            <Separator />
+
+            {reconstructedImage && (
+              <div className="space-y-2">
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Download Options
+                </h4>
+                <Button
+                  onClick={downloadReconstructedImage}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Reconstructed Image
+                </Button>
+              </div>
+            )}
 
             <Separator />
 
@@ -499,10 +671,13 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
                 <div className="space-y-2">
 
 
-                  <Button onClick={handleBuy} className="w-full">
-                    {isBuying ? "Processing..." : `Buy for ${nft.metadata.price} SUI`}
-                  </Button>
+                  {isMarketplace && <Button onClick={handleBuy} className="w-full">
+                    {isBuying ? "Processing..." : `Pay to escrow ${nft.metadata.price/2} SUI`}
+                  </Button>}
+                  <Button className='w-full' onClick={async () => await completepayment(account?.address || '0xb9fedd0c0027963e53e7b0ba00d56034bfacea29f06a0adb8cbeddf83b61eaca', nft.name)}>Complete payment</Button>
+                  {/* <Button onClick={async () => await fetchescrow()}>Fetch Escrow</Button> */}
                 </div>
+
               </div>
             )}
           </div>

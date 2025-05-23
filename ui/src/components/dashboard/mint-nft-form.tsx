@@ -6,6 +6,8 @@ import { usePixelRemover } from "@/hooks/use-pixel-remover";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import { toast } from "sonner";
+
 import {
   useAccounts,
   useCurrentAccount,
@@ -39,6 +41,8 @@ const MintNFTForm = () => {
   const [allowlistaddress, setAllowlistAddress] = useState("");
   const [newallowlistid, setNewAllowlistid] = useState("");
   const [newallowlistobject, setNewAllowlistObject] = useState("");
+  const [isMinting, setIsMinting] = useState(false);
+  const [mintingStep, setMintingStep] = useState("");
   const currentAccount = useCurrentAccount();
   const accounts = useAccounts();
   const suiClient = new SuiClient({
@@ -55,7 +59,7 @@ const MintNFTForm = () => {
   const sealnewclient = new SealClient({
     //@ts-ignore
     suiClient: client,
-    serverConfigs : getAllowlistedKeyServers('testnet').map( (id) => ({objectId: id, weight : 1})),
+    serverConfigs: getAllowlistedKeyServers('testnet').map((id) => ({ objectId: id, weight: 1 })),
     verifyKeyServers: false,
   });
   async function encryption(data: string): Promise<any> {
@@ -76,6 +80,8 @@ const MintNFTForm = () => {
   }
 
   async function uploadtoblob(): Promise<any> {
+    setMintingStep("Preparing metadata and encrypting data...");
+
     // Add name, description, and merkle root to the DecodedPayload
     // Encrypt the coordinates
     const coordsString = JSON.stringify(DecodedPayload.coords);
@@ -93,6 +99,8 @@ const MintNFTForm = () => {
     };
     console.log("Payload with Metadata:", payloadWithMetadata.enccoords);
     console.log("Payload with Metadata:", payloadWithMetadata.obfuscatedImage);
+
+    setMintingStep("Uploading to Walrus storage...");
 
     const url = `${PUBLISHER}/v1/blobs`;
     const fileBuffer = new Blob([JSON.stringify(payloadWithMetadata)], { type: "application/json" });
@@ -112,6 +120,8 @@ const MintNFTForm = () => {
 
   // THis uploads the obfuscated image to the marketplace::store contract
   async function uploadtomarketplace(blob: string) {
+    setMintingStep("Creating NFT on blockchain...");
+
     // const address = currentAccount?.address ?? "";
     tx.moveCall({
       arguments: [tx.pure.vector('u8', toUint8array(`${name}`)), tx.pure.vector('u8', toUint8array(`${description}`)), tx.pure.vector('u8', toUint8array(`${uploadedImageUrl}`)), tx.pure.vector('u8', toUint8array(`${merkleRoot}`))],
@@ -122,10 +132,7 @@ const MintNFTForm = () => {
       arguments: [tx.object(id), tx.pure.vector('u8', toUint8array(blob))],
     })
 
-    tx.moveCall({
-      target: `${packagid}::allowlist::create_allowlist_entry`,
-      arguments: [tx.pure.string("nft access")],
-    });
+    setMintingStep("Executing transaction...");
 
     const result = await signAndExecuteTransaction({
       transaction: tx,
@@ -133,8 +140,17 @@ const MintNFTForm = () => {
     });
     console.log("Transaction executed with digest:", result.digest);
 
+    setMintingStep("NFT minted successfully!");
 
-
+    toast.success("NFT Minted!", {
+      description: `Transaction Completed Successfully`,
+      action: {
+        label: "SuiScan",
+        onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${result.digest}`, '_blank')
+      },
+      duration: 4000,
+      position: "top-right",
+    });
   }
   // can set the return type here to make it easier
   async function fetchBlobs() {
@@ -178,13 +194,23 @@ const MintNFTForm = () => {
     //   target: `${packagid}::allowlist::create_allowlist_entry`,
     //   arguments: [tx.pure.string("nft access")],
     // });
-    tx.setGasBudget(1000000000); 
+    tx.setGasBudget(1000000000);
     const result2 = await signAndExecuteTransaction({
       transaction: tx,
       chain: 'sui:testnet'
     });
     console.log("Transaction executed with digest:", result2);
 
+    // Show toast for allowlist addition
+    toast.success("Address Added to Allowlist!", {
+      description: `Added to Allowlist Succesfully`,
+      action: {
+        label: "SuiScan",
+        onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${result2.digest}`, '_blank')
+      },
+      duration: 4000,
+      position: "top-right",
+    });
 
     // console.log("Adding to allowlist the address:", address);
     // const ownedobjects = await client.getOwnedObjects({
@@ -275,11 +301,32 @@ const MintNFTForm = () => {
   //   })
   // }
   async function finalpublish() {
-    const bob = await uploadtoblob();
-    // await encryption(bob ?? "");
-    await uploadtomarketplace(bob ?? "");
+    if (isMinting) return; // Prevent multiple simultaneous minting attempts
 
+    setIsMinting(true);
+    setMintingStep("Starting minting process...");
 
+    try {
+      const bob = await uploadtoblob();
+      await uploadtomarketplace(bob ?? "");
+
+      // Reset form after successful mint
+      setName("");
+      setDescription("");
+      setPrice("");
+      setImage(null);
+      setImagePreview(null);
+    } catch (error) {
+      console.error("Minting failed:", error);
+      toast.error("Failed to mint NFT", {
+        description: "Please try again",
+        duration: 4000,
+        position: "top-right",
+      });
+    } finally {
+      setIsMinting(false);
+      setMintingStep("");
+    }
   }
   const walletAddress = currentAccount?.address;
 
@@ -320,130 +367,165 @@ const MintNFTForm = () => {
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle publish logic here
-    alert("NFT Minted!");
+
   };
 
   return (
-    <form
-      className="max-w-3xl mx-auto space-y-6 p-6 bg-muted/50 mb-10 border rounded-xl"
-      onSubmit={handlePublish}
-    >
-      <div>
-        <Label className="block font-medium mb-1">Name</Label>
-        <Input
-          type="text"
-          className="w-full border rounded px-3 py-2 bg-muted"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-      </div>
-      <div>
-        <Label className="block font-medium mb-1">Description</Label>
-        <Textarea
-          className="w-full border rounded px-3 py-2 bg-muted"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
-      </div>
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <Label className="block font-medium mb-1">Price (SUI)</Label>
+    <div className="relative">
+      {/* Overlay during minting */}
+      {isMinting && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
+          <div className="bg-card border border-border p-6 rounded-lg shadow-lg text-center max-w-sm">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <h3 className="text-lg font-semibold mb-2 text-foreground">Minting Your NFT</h3>
+            <p className="text-sm text-muted-foreground">{mintingStep}</p>
+          </div>
+        </div>
+      )}
+
+      <form
+        className="max-w-3xl mx-auto space-y-6 p-6 bg-muted/50 mb-10 border rounded-xl"
+        onSubmit={handlePublish}
+      >
+        <div>
+          <Label className="block font-medium mb-1">Name</Label>
           <Input
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             className="w-full border rounded px-3 py-2 bg-muted"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isMinting}
             required
           />
         </div>
-        <div className="flex-1">
-          <Label className="block font-medium mb-1">Wallet Address</Label>
-          <Input
-            type="text"
-            className="w-full border rounded px-3 py-2 bg-muted border-primary"
-            value={walletAddress}
-            readOnly
+        <div>
+          <Label className="block font-medium mb-1">Description</Label>
+          <Textarea
+            className="w-full border rounded px-3 py-2 bg-muted"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isMinting}
+            required
           />
         </div>
-      </div>
-      <div>
-        <Label className="block font-medium mb-1">Upload Image</Label>
-        <FileUpload accept="image/*" onChange={handleFileChange} />
-      </div>
-      <div className="flex items-end gap-4">
-        <Button
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Label className="block font-medium mb-1">Price (SUI)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full border rounded px-3 py-2 bg-muted"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              disabled={isMinting}
+              required
+            />
+          </div>
+          <div className="flex-1">
+            <Label className="block font-medium mb-1">Wallet Address</Label>
+            <Input
+              type="text"
+              className="w-full border rounded px-3 py-2 bg-muted border-primary"
+              value={walletAddress}
+              readOnly
+            />
+          </div>
+        </div>
+        <div>
+          <Label className="block font-medium mb-1">Upload Image</Label>
+          <FileUpload accept="image/*" onChange={handleFileChange} />
+        </div>
+        <div className="flex items-end gap-4">      <Button
           type="button"
           onClick={handleObfuscate}
           size={"lg"}
-          disabled={!image}
+          disabled={!image || isMinting}
         >
-          Obfuscate
+          {isMinting ? "Processing..." : "Obfuscate"}
         </Button>
-        <div className="flex-1">
-          <Label className="block font-medium mb-1">Merkleroot</Label>
-          <Input
-            type="text"
-            className="w-full border rounded px-3 py-2 bg-muted border-primary"
-            placeholder="Merkleroot (will be generated automatically)"
-            value={merkleRoot ?? ""}
-            disabled={!merkleRoot}
-            readOnly
-          />
-        </div>
-      </div>
-      <div>
-        <Label className="block font-medium mb-1">Image Preview</Label>
-        <div className="w-full h-48 border rounded flex items-center justify-center overflow-hidden">
-          <canvas ref={canvasRef} className="hidden" />
-          {imagePreview ? (
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="object-contain w-full h-full"
+          <div className="flex-1">
+            <Label className="block font-medium mb-1">Merkleroot</Label>
+            <Input
+              type="text"
+              className="w-full border rounded px-3 py-2 bg-muted border-primary"
+              placeholder="Merkleroot (will be generated automatically)"
+              value={merkleRoot ?? ""}
+              disabled={!merkleRoot}
+              readOnly
             />
-          ) : (
-            <span className="text-muted-foreground">No image selected</span>
-          )}
+          </div>
         </div>
-      </div>
-      <Input
+        <div>
+          <Label className="block font-medium mb-1">Image Preview</Label>
+          <div className="w-full h-48 border rounded flex items-center justify-center overflow-hidden">
+            <canvas ref={canvasRef} className="hidden" />
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="object-contain w-full h-full"
+              />
+            ) : (
+              <span className="text-muted-foreground">No image selected</span>
+            )}
+          </div>
+        </div>
+        {/* <Input
         type="text"
         className="w-full border rounded px-3 py-2 bg-muted border-primary"
         placeholder="Enter the address you want to add to the allowlist"
         value={allowlistaddress}
         onChange={(e) => setAllowlistAddress(e.target.value)}
       />
-      <Button onClick={async () => await addtoAllowlist(allowlistaddress)}>Add to Allowlist</Button>
-      <Button
-        type="submit"
-        className="w-full mt-4"
-        disabled={!merkleRoot || !image}
-        onClick={finalpublish}
-      >
-        Final Publish
-      </Button>
-      <div className="grid grid-cols-2 gap-4">
-        {DecodedPayload &&
-          DecodedPayload.blocks.map((base64Img: string, index: number) => (
-            <img
-              key={index}
-              src={base64Img}
-              alt={`Block ${index}`}
-              style={{ width: 100, height: 100 }}
-            />
-          ))}
-      </div>
-      {obfuscatedImage && (
-        <div>
-          <h3>Obfuscated Image</h3>
-          <img src={obfuscatedImage} alt="Obfuscated" />
+      <Button onClick={async () => await addtoAllowlist(allowlistaddress)}>Add to Allowlist</Button> */}
+        {/* Loading State Display */}
+        {isMinting && (
+          <div className="bg-muted/50 border border-border rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <div>
+                <p className="font-medium text-foreground">Minting NFT...</p>
+                <p className="text-sm text-muted-foreground">{mintingStep}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          className="w-full mt-4"
+          disabled={!merkleRoot || !image || isMinting}
+          onClick={finalpublish}
+        >
+          {isMinting ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Minting...</span>
+            </div>
+          ) : (
+            "Final Publish"
+          )}
+        </Button>
+        <div className="grid grid-cols-2 gap-4">
+          {DecodedPayload &&
+            DecodedPayload.blocks.map((base64Img: string, index: number) => (
+              <img
+                key={index}
+                src={base64Img}
+                alt={`Block ${index}`}
+                style={{ width: 100, height: 100 }}
+              />
+            ))}
         </div>
-      )}
-    </form>
+        {obfuscatedImage && (
+          <div>
+            <h3>Obfuscated Image</h3>
+            <img src={obfuscatedImage} alt="Obfuscated" />
+          </div>
+        )}
+      </form>
+    </div>
   );
 };
 

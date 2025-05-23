@@ -1,6 +1,7 @@
 import { BrowserRouter } from "react-router";
 import { ThemeProvider } from "./components/theme-provider";
 
+
 import {
   createNetworkConfig,
   SuiClientProvider,
@@ -34,6 +35,7 @@ function RegisterEnokiWallets() {
         // facebook: { clientId: 'YOUR_FACEBOOK_CLIENT_ID' },
         // twitch: { clientId: 'YOUR_TWITCH_CLIENT_ID' },
       },
+      // @ts-ignore
       client,
       network,
     });
@@ -52,6 +54,7 @@ export const Providers = ({ children }: { children: React.ReactNode }) => {
           <RegisterEnokiWallets />
           <WalletProvider>
             <BrowserRouter>{children}</BrowserRouter>
+          
           </WalletProvider>
         </SuiClientProvider>
       </QueryClientProvider>
