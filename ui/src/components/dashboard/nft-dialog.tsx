@@ -49,6 +49,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
   const paymentpckgid = '0xe9f2dc97c3afc7ff4c42fb105eba43bebddc36ff88cf337693f00d84fd0d8595';
   const id = '0x97fad43945130f277532b7891d47a81823d7990af6795b0ec4f9364c474eefda'
+  const currentaccount = useCurrentAccount();
 
   const allowlistobject = '0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9'
   const packagid = '0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25';
@@ -238,9 +239,10 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
 
     // console.log("Encrypted bytes:", encryptedBytes);
     const SUI_NETWORK = "testnet";
+    console.log(currentaccount?.address,);
     //@ts-ignore
     const session_key = new SessionKey({
-      address: '0x7800633ee32ea1b4c4c2724114dfbfa9e7a085bc93aabcd5d2c7d11c560d5693',
+      address: currentaccount?.address || '',
       packageId: packagid,
       ttlMin: 20,
       ...(SUI_NETWORK === "testnet" && {
@@ -292,18 +294,18 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     console.log("Decrypted string:", string2);
     const parsedCoords = JSON.parse(string2);
     setDecryptedCoords(parsedCoords);
-    
+
     if (merklerootverification(nft.merkleroot, parsedCoords)) {
       const blocks = decodedData.blocks;
       const obfuscatedUrl = decodedData.obfuscatedImage;
-      
+
       // Verify that blocks and coordinates are valid arrays
       if (Array.isArray(blocks) && Array.isArray(parsedCoords)) {
         console.log("Starting image reconstruction with:", {
           blockCount: blocks.length,
           coordCount: parsedCoords.length
         });
-        
+
         const imageResult = await reconstructImage(obfuscatedUrl, blocks, parsedCoords);
         setReconstructedImage(imageResult);
         console.log("Image reconstructed successfully!");
