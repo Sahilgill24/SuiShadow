@@ -57,7 +57,7 @@ public fun metadata(nft: &NFT): &string::String {
 /// Get the NFT's `url`
 /// Not a public function as this would result in the photo
 /// it has to be a private function
-fun url(nft: &NFT): &Url {
+public fun url(nft: &NFT): &Url {
 		&nft.url
 }
 
@@ -68,9 +68,9 @@ fun url(nft: &NFT): &Url {
 public fun mint_to_sender(
 		name: vector<u8>,
 		metadata: vector<u8>,
-		url: vector<u8>,
-		ctx: &mut TxContext,
+		url: vector<u8>,	
 		merkleroot: vector<u8>,
+		ctx: &mut TxContext,
 ) {
 		let sender = ctx.sender();
 		let nft = NFT {
