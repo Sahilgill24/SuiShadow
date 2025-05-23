@@ -12,6 +12,8 @@ import {
   MyNFTsTab,
   MintTab,
 } from "@/components/dashboard";
+import { useAccounts } from "@mysten/dapp-kit";
+import { Navigate } from "react-router";
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState("marketplace");
@@ -20,6 +22,8 @@ export function Dashboard() {
   const [sortedMarketplaceNFTs, setSortedMarketplaceNFTs] =
     useState(marketplaceNFTs);
   const [sortedMyNFTs, setSortedMyNFTs] = useState(myNFTs);
+
+  const accounts = useAccounts();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -33,6 +37,10 @@ export function Dashboard() {
     setSortedMyNFTs(sortNFTs(myNFTs, sortBy));
   }, [sortBy]);
 
+  if (accounts.length === 0) {
+    return <Navigate to="/" />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -45,7 +53,10 @@ export function Dashboard() {
       <main className="px-4 md:px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsContent value="marketplace" className="mt-0">
-            <MarketplaceTab nfts={sortedMarketplaceNFTs} isLoading={isLoading} />
+            <MarketplaceTab
+              nfts={sortedMarketplaceNFTs}
+              isLoading={isLoading}
+            />
           </TabsContent>
 
           <TabsContent value="my-nfts" className="mt-0">

@@ -9,7 +9,22 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Ghost, Plus, ShoppingBag, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import { sortOptions, type SortOption } from "@/lib/sample-data";
-import { ZkLogin } from "@/components/zk-login/widget";
+import {
+  useAccounts,
+  useCurrentAccount,
+  useDisconnectWallet,
+  useResolveSuiNSName,
+} from "@mysten/dapp-kit";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { ChevronDownIcon } from "lucide-react";
+import { shortenAddress } from "@polymedia/suitcase-core";
 
 const tabs = [
   {
@@ -36,7 +51,12 @@ interface HeaderProps {
   setSortBy: (sort: SortOption) => void;
 }
 
-export function Header({ activeTab, setActiveTab, sortBy, setSortBy }: HeaderProps) {
+export function Header({
+  activeTab,
+  setActiveTab,
+  sortBy,
+  setSortBy,
+}: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between">
@@ -79,32 +99,60 @@ export function Header({ activeTab, setActiveTab, sortBy, setSortBy }: HeaderPro
           </Tabs>
         </motion.div>
         <div className="flex gap-2 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Select
-              value={sortBy}
-              onValueChange={(value: SortOption) => setSortBy(value)}
-            >
-              <SelectTrigger className="rounded-full">
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                {sortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </motion.div>
-          <motion.div className="div">
-            <ZkLogin loggedOutTrigger={<></>} />
-          </motion.div>
+          <AccountInfo />
         </div>
       </div>
     </header>
+  );
+}
+
+function AccountInfo() {
+  const currentAccount = useCurrentAccount();
+  const { mutate: disconnectWallet } = useDisconnectWallet();
+  const { data: domain } = useResolveSuiNSName(
+    currentAccount?.label ? null : currentAccount?.address
+  );
+  const accounts = useAccounts();
+
+  if (!currentAccount) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="rounded-full px-4 flex items-center gap-2"
+        >
+          <span className="font-mono font-bold">
+            {currentAccount.label ??
+              domain ??
+              shortenAddress(currentAccount.address)}
+          </span>
+          <ChevronDownIcon className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[220px]">
+        {accounts.map((account) => (
+          <DropdownMenuItem
+            key={account.address}
+            className={
+              currentAccount.address === account.address
+                ? "bg-accent text-foreground "
+                : ""
+            }
+            disabled={currentAccount.address === account.address}
+          >
+            {account.label ?? shortenAddress(account.address)}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onSelect={() => disconnectWallet()}
+        >
+          Disconnect
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@mysten/dapp-kit": "^0.16.4",
+    "@mysten/enoki": "^0.6.13",
+    "@mysten/seal": "^0.4.5",
     "@mysten/sui": "^1.30.0",
     "@mysten/zklogin": "^0.7.3",
     "@polymedia/suitcase-core": "^0.0.54",

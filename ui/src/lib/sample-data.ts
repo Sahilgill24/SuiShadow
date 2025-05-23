@@ -1,4 +1,6 @@
+
 import type { NFT } from "./types";
+
 
 export const marketplaceNFTs: NFT[] = [
   {

@@ -4,21 +4,19 @@ import {
   FeaturesSection,
   HowItWorksSection,
   UseCasesSection,
-  CallToActionSection,
   Footer,
+  TechnologiesSection
 } from "@/components/landing-page";
-import { useCurrentAccount } from "@mysten/dapp-kit";
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useAccounts } from "@mysten/dapp-kit";
+import { Navigate } from "react-router";
 
 const HomePage = () => {
-  const currentAccount = useCurrentAccount();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (currentAccount) {
-      navigate("/dashboard");
-    }
-  }, [currentAccount, navigate]);
+  const accounts = useAccounts();
+
+  if (accounts.length > 0) {
+    return <Navigate to="/dashboard" />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -27,7 +25,7 @@ const HomePage = () => {
         <FeaturesSection />
         <HowItWorksSection />
         <UseCasesSection />
-        <CallToActionSection />
+        <TechnologiesSection />
       </main>
       <Footer />
     </div>

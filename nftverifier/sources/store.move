@@ -31,13 +31,13 @@ module nftverifier::store;
     }
 
     // Add a blob ID to the marketplace
-    public fun add_blob(registry: &mut Marketplace, new_blob: string::String) {
-        push_back<string::String>(&mut registry.blobs, new_blob);
+    public fun add_blob(registry: &mut Marketplace, new_blob: vector<u8>) {
+        push_back<string::String>(&mut registry.blobs, string::utf8(new_blob));
     }
 
     // Get all blob IDs from the marketplace
-    public fun get_blobs(registry: &Marketplace): &vector<string::String> {
-        &registry.blobs
+    public fun get_blobs(registry: &Marketplace): vector<string::String> {
+        registry.blobs
     }
 
     // Get the number of blobs

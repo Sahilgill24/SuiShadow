@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 import axios from "axios";
 import { MerkleTree } from "merkletreejs";
 import SHA256 from "crypto-js/sha256";
-import { AES } from "crypto-js";
+import { fromHex, toHex } from '@mysten/sui/utils';
+import { getAllowlistedKeyServers, SealClient, SessionKey, type SessionKeyType } from '@mysten/seal';
+
 
 
 
@@ -64,6 +66,10 @@ const usePixelRemover = () => {
   const [DecodedPayload, setDecodedPayload] = useState<any>(null);
   const PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
   const [obfuscatedImage, setObfuscatedImage] = useState<string | null>(null);
+  const [bob, setBOB] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+
   const handleImageUpload = (file?: File) => {
     if (!file) return;
 
@@ -87,7 +93,8 @@ const usePixelRemover = () => {
 
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
-
+    console.log(width);
+    console.log(height);
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
 
@@ -137,11 +144,47 @@ const usePixelRemover = () => {
     setOutputSrc(newImageUrl);
     setSlicedBlocks(sliced);
     sendToApi({ blocks: sliced, coords, obfuscated: newImageUrl });
+    setDecodedPayload({ blocks: sliced, coords, obfuscated: newImageUrl });
+    setObfuscatedImage(newImageUrl);
+  };
+
+  const uploadObfuscatedImage = async (imageDataUrl: string) => {
+    if (!imageDataUrl) return null;
+
+    try {
+      setUploadingImage(true);
+
+      // Convert base64 data URL to blob
+      const response = await fetch(imageDataUrl);
+      const blob = await response.blob();
+
+      // Create form data for the upload
+      const formData = new FormData();
+      formData.append('image', blob, 'obfuscated-image.png');
+
+      // Send to the express server
+      const uploadResponse = await axios.post('https://encode-zkml.onrender.com/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+
+      });
+      console.log("success")
+      console.log('Upload response:', uploadResponse.data);
+      setUploadedImageUrl(uploadResponse.data.url);
+      return uploadResponse.data.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const sendToApi = async (payload: { blocks: string[], coords: { x: number, y: number }[], obfuscated: string }) => {
     // This is the Merkle tree root of the coordinates
     console.log("Payload:", payload.coords);
+
     // const testcoords = [
     //   [10, 20],
     //   [10, 10],
@@ -165,6 +208,9 @@ const usePixelRemover = () => {
     // const root = tree.getRoot().toString('hex');
     // console.log('Merkle Root:', root);
 
+    // Upload the obfuscated image to the server
+
+
     const leaves = [];
     for (let i = 0; i < payload.coords.length; i++) {
       const { x, y } = payload.coords[i];
@@ -180,49 +226,53 @@ const usePixelRemover = () => {
     // 2️⃣ Step: Manually compute the Merkle root
     const merkleRoot = computeMerkleRoot(leaves);
     setMerkleRoot(merkleRoot);
-    console.log(`\n✨ Merkle Root: ${merkleRoot}`);
+    console.log(`Merkle Root: ${merkleRoot}`);
+    if (payload.obfuscated) {
+      const uploadedUrl = await uploadObfuscatedImage(payload.obfuscated);
+      console.log("Uploaded image URL:", uploadedUrl);
+    }
+    else {
+      console.log("No obfuscated image to upload");
+    }
 
-    const algorithm = 'aes-256-cbc'; // AES algorithm
-    const key = "mykey"; // 
-    const key2 = crypto.randomUUID();
-    console.log("key2", key2);
     // Initialization vector
 
     // the encrypted image being sent;
-    const url = `${PUBLISHER}/v1/blobs`;
-    const fileBuffer = new Blob([JSON.stringify(payload)], { type: "application/json" });
-    const response = await axios({
-      method: 'put',
-      url: url,
-      data: fileBuffer,
-      headers: {
-        'Content-Type': 'application/octet-stream'
-      }
-    });
-    // this should be our blob id 
-    const blobId = response.data.newlyCreated.blobObject.blobId;
-    console.log("blobId", response.data.newlyCreated.blobObject.blobId);
+    // this should be done , when the user clicks on the final Publish button
+    // const url = `${PUBLISHER}/v1/blobs`;
+    // const fileBuffer = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    // const response = await axios({
+    //   method: 'put',
+    //   url: url,
+    //   data: fileBuffer,
+    //   headers: {
+    //     'Content-Type': 'application/octet-stream'
+    //   }
+    // });
+    // // this should be our blob id 
+    // const blobId = response.data.newlyCreated.blobObject.blobId;
+    // console.log("blobId", response.data.newlyCreated.blobObject.blobId);
+    // setBOB(blobId)
 
-    const AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
-    const retrieveurl = `${AGGREGATOR}/v1/blobs/${blobId}`;
-    const response2 = await axios({
-      method: 'get',
-      url: retrieveurl,
-      responseType: 'arraybuffer'
-    });
+    // const AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
+    // const retrieveurl = `${AGGREGATOR}/v1/blobs/${blobId}`;
+    // const response2 = await axios({
+    //   method: 'get',
+    //   url: retrieveurl,
+    //   responseType: 'arraybuffer'
+    // });
 
-    console.log("Retrieved data:", response2.data);
-    // Step 1: Convert ArrayBuffer to string
-    const decoder = new TextDecoder("utf-8");
-    const jsonString = decoder.decode(new Uint8Array(response2.data));
+    // console.log("Retrieved data:", response2.data);
+    // // Step 1: Convert ArrayBuffer to string
+    // const decoder = new TextDecoder("utf-8");
+    // const jsonString = decoder.decode(new Uint8Array(response2.data));
 
-    // Step 2: Parse JSON
-    const decodedPayload = JSON.parse(jsonString);
+    // // Step 2: Parse JSON
+    // const decodedPayload = JSON.parse(jsonString);
 
     // Step 3: Use the fields
+    // no need to upload and retrieve here , do it for the final Publish button instead
 
-    setDecodedPayload(decodedPayload);
-    setObfuscatedImage(decodedPayload.obfuscated);
 
 
 
@@ -239,6 +289,14 @@ const usePixelRemover = () => {
     link.click();
   };
 
+  const uploadCurrentObfuscatedImage = async () => {
+    if (!obfuscatedImage) {
+      console.error('No obfuscated image available to upload');
+      return null;
+    }
+    return await uploadObfuscatedImage(obfuscatedImage);
+  };
+
   return {
     canvasRef,
     outputSrc,
@@ -247,8 +305,12 @@ const usePixelRemover = () => {
     handleDownload,
     merkleRoot,
     DecodedPayload,
-    obfuscatedImage
-
+    obfuscatedImage,
+    bob,
+    uploadObfuscatedImage,
+    uploadCurrentObfuscatedImage,
+    uploadedImageUrl,
+    uploadingImage
   };
 };
 

@@ -3,8 +3,8 @@
 import { NavLink as Link } from "react-router";
 import { motion } from "framer-motion";
 import { Ghost } from "lucide-react";
-import { AnimatedButton } from "./animated/animated-button";
-import { ZkLogin } from "../zk-login/widget";
+import { ConnectModal } from "@mysten/dapp-kit";
+import { Button } from "../ui/button";
 
 const navLinks = [
   {
@@ -22,6 +22,7 @@ const navLinks = [
 ];
 
 export function Header() {
+
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 flex justify-center">
       <div className="container flex h-14 items-center justify-between gap-8 px-4 border-l border-r">
@@ -56,11 +57,11 @@ export function Header() {
           transition={{ duration: 0.5 }}
           className="flex items-center gap-4"
         >
-          <ZkLogin
-            loggedOutTrigger={
-              <AnimatedButton className="rounded-full">
+          <ConnectModal
+            trigger={
+              <Button size="sm" className="rounded-full">
                 Get Started
-              </AnimatedButton>
+              </Button>
             }
           />
         </motion.div>
