@@ -1,23 +1,29 @@
-
-
+/// This is the code for the NFT 
 module nftverifier::nft;
 use std::string;
 use sui::event;
 use sui::url::{Self, Url};
+use sui::sui::SUI;
+// this will be used to buy the NFT 
 
 /// An example NFT that can be minted by anybody
-public struct TestnetNFT has key, store {
+public struct NFT has key, store {
 		id: UID,
 		/// Name for the token
 		name: string::String,
-		/// Description of the token
-		description: string::String,
+		/// metadata of the token
+		metadata: string::String,
 		/// URL for the token
+		/// aka obfuscated image
 		url: Url,
-		// TODO: allow custom attributes
+		/// Merkle Root of the merkle tree
+		/// formed using the coordinated
+		/// of the Obfuscated image .
+		merkleroot: string::String,
+		
+
 }
 
-// ===== Events =====
 
 public struct NFTMinted has copy, drop {
 		// The Object ID of the NFT
@@ -30,18 +36,21 @@ public struct NFTMinted has copy, drop {
 
 // ===== Public view functions =====
 
-/// Get the NFT's `name`
-public fun name(nft: &TestnetNFT): &string::String {
+/// Get the NFT's name
+public fun name(nft: &NFT): &string::String {
 		&nft.name
 }
 
-/// Get the NFT's `description`
-public fun description(nft: &TestnetNFT): &string::String {
-		&nft.description
+/// Get the NFT's `metadata`
+/// the price and description will be stored here
+public fun metadata(nft: &NFT): &string::String {
+		&nft.metadata
 }
 
 /// Get the NFT's `url`
-public fun url(nft: &TestnetNFT): &Url {
+/// Not a public function as this would result in the photo
+/// it has to be a private function
+fun url(nft: &NFT): &Url {
 		&nft.url
 }
 
@@ -51,16 +60,18 @@ public fun url(nft: &TestnetNFT): &Url {
 /// Create a new devnet_nft
 public fun mint_to_sender(
 		name: vector<u8>,
-		description: vector<u8>,
+		metadata: vector<u8>,
 		url: vector<u8>,
 		ctx: &mut TxContext,
+		merkleroot: vector<u8>,
 ) {
 		let sender = ctx.sender();
-		let nft = TestnetNFT {
+		let nft = NFT {
 				id: object::new(ctx),
 				name: string::utf8(name),
-				description: string::utf8(description),
+				metadata: string::utf8(metadata),
 				url: url::new_unsafe_from_bytes(url),
+				merkleroot: string::utf8(merkleroot),
 		};
 
 		event::emit(NFTMinted {
@@ -73,21 +84,21 @@ public fun mint_to_sender(
 }
 
 /// Transfer `nft` to `recipient`
-public fun transfer(nft: TestnetNFT, recipient: address, _: &mut TxContext) {
+public fun transfer(nft: NFT, recipient: address, _: &mut TxContext) {
 		transfer::public_transfer(nft, recipient)
 }
 
 /// Update the `description` of `nft` to `new_description`
-public fun update_description(
-		nft: &mut TestnetNFT,
-		new_description: vector<u8>,
+public fun update_metadata(
+		nft: &mut NFT,
+		new_metadata: vector<u8>,
 		_: &mut TxContext,
 ) {
-		nft.description = string::utf8(new_description)
+		nft.metadata = string::utf8(new_metadata)
 }
 
 /// Permanently delete `nft`
-public fun burn(nft: TestnetNFT, _: &mut TxContext) {
-		let TestnetNFT { id, name: _, description: _, url: _ } = nft;
+public fun burn(nft: NFT, _: &mut TxContext) {
+		let NFT { id, name: _, metadata: _, url: _ ,merkleroot: _} = nft;
 		id.delete()
 }

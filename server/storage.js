@@ -57,6 +57,30 @@ async function get(blobId, savePath) {
     }
 }
 
+app.get('/retrieve', async (req, res) => {
+    try {
+        const blobId = req.query.blobId;
+        if (!blobId) {
+            return res.status(400).json({ error: 'No blob ID provided' });
+        }
+
+        const savePath = path.join(__dirname, 'downloaded_blob');
+        const success = await get(blobId, savePath);
+
+        if (success) {
+            res.status(200).sendFile(savePath);
+        } else {
+            res.status(500).json({ error: 'Failed to download blob' });
+        }
+    } catch (error) {
+        console.error(`Unexpected error: ${error.message}`);
+        res.status(500).json({
+            error: 'An unexpected error occurred',
+            details: error.message
+        });
+    }
+})
+
 app.post('/upload', async (req, res) => {
     try {
         // Validate request data
