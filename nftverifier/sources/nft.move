@@ -2,9 +2,16 @@
 module nftverifier::nft;
 use std::string;
 use sui::event;
-use sui::url::{Self, Url};
 use sui::sui::SUI;
+use sui::url::{Self,Url};
+use sui::dynamic_field as df;
+use nftverifier::utils::is_prefix;
 // this will be used to buy the NFT 
+
+const EInvalidCap: u64 = 0;
+const ENoAccess: u64 = 1;
+const EDuplicate: u64 = 2;
+const MARKER: u64 = 3;
 
 /// An example NFT that can be minted by anybody
 public struct NFT has key, store {
@@ -70,7 +77,7 @@ public fun mint_to_sender(
 				id: object::new(ctx),
 				name: string::utf8(name),
 				metadata: string::utf8(metadata),
-				url: url::new_unsafe_from_bytes(url),
+				url: url::new_unsafe_from_bytes(url) ,
 				merkleroot: string::utf8(merkleroot),
 		};
 

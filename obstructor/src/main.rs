@@ -9,15 +9,16 @@ fn main() {
 
     let img = image::open(path).unwrap();
     let (x, y) = img.dimensions();
+    let mut img2 = img.clone();
     let pixel = img.get_pixel(x - 1, y - 1);
-    
+
     // to copy pixels from the image
     let pixel2 = Rgba::<u8>([0, 0, 0, 0]);
     // just a normal Black pixel
 
     println!("{:?}", (x, y));
     let coordinates = shadowgen(img, random_coordinates(&x, &y), pixel2);
-    // This coordinates tag can now be used to generate proofs etc . 
+    // This coordinates tag can now be used to generate proofs etc .
 }
 fn random_coordinates(x: &u32, y: &u32) -> (u32, u32) {
     let mut rng = rand::rng();
@@ -31,7 +32,6 @@ fn shadowgen(mut img: DynamicImage, (block_x, block_y): (u32, u32), pixel: Rgba<
     for i in block_x..block_x + BLOCK_SIZE {
         for j in block_y..BLOCK_SIZE + block_y {
             img.put_pixel(i, j, pixel);
-            
         }
     }
     img.save(OUTPUTPATH).unwrap();

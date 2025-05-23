@@ -12,6 +12,8 @@
     "axios": "^1.9.0",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "crypto-js": "^4.2.0",
+    "express": "^5.1.0",
+    "merkletreejs": "^0.5.2"
   }
 }

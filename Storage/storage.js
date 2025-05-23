@@ -27,7 +27,8 @@ async function upload(fileBuffer) {
         });
 
         const jsonResponse = response.data;
-        console.log(jsonResponse);
+        console.log(response);
+        
 
         if (jsonResponse.alreadyCertified) {
             return jsonResponse.alreadyCertified.blobId;
@@ -42,7 +43,7 @@ async function upload(fileBuffer) {
 
 async function get(blobId, savePath) {
     try {
-        const url = `${AGGREGATOR}/v1/${blobId}`;
+        const url = `${AGGREGATOR}/v1/blobs/${blobId}`;
         const response = await axios({
             method: 'get',
             url: url,
