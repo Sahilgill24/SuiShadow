@@ -56,7 +56,7 @@ export function MyNFTsTab({ nfts, isLoading }: MyNFTsTabProps) {
         const blobarray = blobIds.reverse();
 
         const decodedNfts = await Promise.all(
-          blobIds
+          blobIds.slice(0,12)
             .filter(async (blobId) => {
               try {
                 const decoded = await decoding(blobId);

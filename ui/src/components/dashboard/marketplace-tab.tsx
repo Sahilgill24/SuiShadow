@@ -60,7 +60,7 @@ export function MarketplaceTab({ nfts, isLoading }: MarketplaceTabProps) {
         const blobarray =blobIds.reverse()
         const decodedNfts = await Promise.all(
           
-          blobIds.map(async (blobId, idx) => {
+          blobIds.slice(0,12).map(async (blobId, idx) => {
             let decoded;
             try {
               decoded = await decoding(blobId);
