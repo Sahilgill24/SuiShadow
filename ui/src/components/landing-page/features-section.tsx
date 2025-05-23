@@ -24,18 +24,7 @@ const features = [
     description:
       "Offer partial content previews while keeping premium features encrypted until purchase.",
   },
-  {
-    icon: Clock,
-    title: "Time Capsules",
-    description:
-      "Create time-locked content that reveals itself only after specific conditions are met.",
-  },
-  {
-    icon: Package2,
-    title: "Mystery Boxes",
-    description:
-      "Deliver surprise content with encrypted reveals, enhancing engagement and collectibility.",
-  },
+
   {
     icon: Lock,
     title: "Exclusive NFTs",
@@ -48,7 +37,7 @@ export function FeaturesSection() {
   return (
     <section
       id="features"
-        className="w-full bg-muted/40 flex justify-center border-b"
+      className="w-full bg-muted/40 flex justify-center border-b"
     >
       <div className="container pt-8 md:pt-12 lg:pt-16 border-l border-r">
         <FadeUp className="flex flex-col items-center justify-center space-y-4 text-center px-4 md:px-6">

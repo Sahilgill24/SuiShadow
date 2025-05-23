@@ -6,6 +6,9 @@
 
 > Sui Shadow is an innovative, privacy-first art platform built on the SUI blockchain, where artists encrypt their work into hidden tiles and mint suspense-filled NFTs. Powered by Key encryption security from Sui `Seal`, each artwork’s AES key is securely generated and released only to legitimate buyers. All encrypted chunks live off-chain in `Walrus`, keeping gas costs minimal and storage unlimited. The artists idendity is verified using `zklogin` as the log-in option on the app . Perfect for creators who want to monetize secret reveals and collectors craving exclusive digital treasures, Sui Shadow turns every purchase into a thrilling unmasking experience backed by robust blockchain security.
 
+> Link to <a href="https://prezi.com/view/mLI25YPKScDHItzav4YN/">pitch deck </a> </br>
+> Link to <a href="https://vimeo.com/1087307574?share=copy"> Video </a>
+
 ---
 
 ## Table of Contents
@@ -48,33 +51,37 @@ Below is the high‐level sequence of steps for each participant (Seller, Market
 
 ### 1. Seller Registration and Upload
 
-1. **zkLogin / Wallet Connect**  
-   - Seller logs in with Sui’s `zkLogin` (zero‐knowledge identity) using their preferable oauth (we currently added google as the oauth) Their wallet address is now linked to a verifiable Sui account.
+1. **zkLogin**  
+   - Seller logs in with Sui’s `zkLogin` (zero‐knowledge identity) using their preferable oauth (we currently added google as the oauth) The newly created wallet address is now linked to a verifiable Sui account. No need to even show the original NFT holder account .
 
 
 2. **Image Obfuscation**  
-   - Seller picks an image (e.g., a high‐resolution JPEG/PNG).  
-   - The front‐end/UI tool automatically “blacks out” or “pixelates” selected regions (e.g., tiles). These obfuscated tiles become placeholders for encrypted blocks.  
-   - Optionally: A low‐resolution preview or watermarked version is generated for marketplace browsing.
+   - Seller uploads an image (e.g., a high‐resolution JPEG/PNG).  
+   - The front‐end/UI tool automatically “blacks out” or “pixelates” selected regions (e.g., tiles). These obfuscated tiles become placeholders for encrypted blocks.
+   - We take these tiles as `img.height/10` and `img.width/10`  
+   - This obfuscated image is now uploaded to walrus and fetched on the frontend to show on the MarketPlace
 
 3. **AES Key Derivation**  
-   - Front end requests a fresh AES key from the **Key‐Server Contract**, which uses Sui Seal to generate a secure, random 256-bit symmetric key.  
-   - This key is kept off‐chain within a secure enclave (the contract), never exposed publicly.
+   - a fresh key from the **Key‐Server Contract** is requested , which is based on Sui Seal.  
+   - This key is stored by the user and a access table in the
+    contract can be changed to give access to this key to an 
+    external user .
 
 4. **Block Encryption & Merkle Construction**  
    - The image is divided into \(N\) tiles (e.g., 16×16 grid = 256 blocks).  
-   - Each tile (raw pixel‐data) is AES‐encrypted (e.g., `AES‐GCM`) using the derived symmetric key.  
+   - for simplicity as no merkle tree library works straight on
+   frontend , we had to manually construct the root , so we took a `depth-3` tree with SHA-256 hashes. 
+   - Each Coordinate and Block(after conversion to base64 string) is now AES‐encrypted (e.g., `AES‐GCM`) using the derived symmetric key.  
    - All ciphertexts are collected, their SHA-256 hashes become the leaves of a binary Merkle tree.  
    - A single 32-byte **Merkle root** is computed.
 
 5. **Upload to Walrus & Mint**  
-   - Upload the array of \(N\) ciphertexts (plus any coordinate metadata) to Walrus. Walrus returns a **blob ID** (CID).  
+   - Upload the array of \(N\) ciphertexts (plus any coordinate metadata) to Walrus. Walrus returns a **blob ID** (BlobID).  
    - Call `mint_to_sender(bloblast_id: String, merkle_root: [u8;32])` on the Sui NFT contract:
      - An NFT object is created with immutable fields:
-       - `blob_id` (e.g., “bafy…”)  
-       - `merkle_root` (32-byte)
-       - (Optionally) `preview_url` or `preview_hash` for a low-res thumbnail.  
-   - Seller now has a “Shadow NFT” in their Sui wallet. This NFT shows a blacked-out image or a watermarked preview in UIs that support the metadata.
+       - `blob_id` (e.g., “3hX....”)  
+       - `merkle_root` (32-byte) 
+   
 
 <img src="./readmeimages/image copy.png" >
 ---
@@ -130,7 +137,9 @@ The system is divided into four logical layers:
 1. **Client / UI**  
    - **Seller UI**:  
      - Image obfuscation (black‐out or pixelation).  
-     - AES‐encrypt blocks + call backend to compute Merkle tree.  
+     - The image obstruction to optimize it and the merkletree
+      a rust backend is written but for the MVP we use everything on frontend (easy to deploy !!)
+     - AES‐encrypt blocks 
      - Initiate `mint_to_sender(blob_id, merkle_root)`.  
    - **Buyer UI**:  
      - Display “locked” preview.  

@@ -27,7 +27,6 @@ public struct NFT has key, store {
 		/// formed using the coordinated
 		/// of the Obfuscated image .
 		merkleroot: string::String,
-		blobId: string::String,
 		
 
 }
@@ -55,9 +54,7 @@ public fun metadata(nft: &NFT): &string::String {
 		&nft.metadata
 }
 
-public fun blobId(nft : &NFT) : &string::String {
-	&nft.blobId
-}
+
 /// Get the NFT's `url`
 /// Not a public function as this would result in the photo
 /// it has to be a private function
@@ -74,7 +71,6 @@ public fun mint_to_sender(
 		metadata: vector<u8>,
 		url: vector<u8>,	
 		merkleroot: vector<u8>,
-		blobId: vector<u8>,
 		ctx: &mut TxContext,
 
 ) {
@@ -85,8 +81,6 @@ public fun mint_to_sender(
 				metadata: string::utf8(metadata),
 				url: url::new_unsafe_from_bytes(url) ,
 				merkleroot: string::utf8(merkleroot),
-				blobId : string::utf8(blobId),
-
 
 		};
 
@@ -115,6 +109,6 @@ public fun update_metadata(
 
 /// Permanently delete `nft`
 public fun burn(nft: NFT, _: &mut TxContext) {
-		let NFT { id, name: _, metadata: _, url: _ ,merkleroot: _, blobId: _} = nft;
+		let NFT { id, name: _, metadata: _, url: _ ,merkleroot: _} = nft;
 		id.delete()
 }

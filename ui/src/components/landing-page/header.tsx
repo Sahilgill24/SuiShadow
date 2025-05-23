@@ -8,15 +8,15 @@ import { ZkLogin } from "../zk-login/widget";
 
 const navLinks = [
   {
-    href: "#features",
+    href: "https://github.com/Sahilgill24/SuiShadow",
     label: "Features",
   },
   {
-    href: "#how-it-works",
+    href: "https://vimeo.com/1087307574?share=copy",
     label: "How It Works",
   },
   {
-    href: "#use-cases",
+    href: "https://prezi.com/view/mLI25YPKScDHItzav4YN/",
     label: "Use Cases",
   },
 ];

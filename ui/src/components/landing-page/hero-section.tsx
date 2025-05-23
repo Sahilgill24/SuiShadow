@@ -28,8 +28,8 @@ export function HeroSection() {
                 transition={{ duration: 0.5, delay: 0.5 }}
                 className="max-w-[600px] text-muted-foreground md:text-xl"
               >
-                Revolutionizing digital ownership with encrypted content,
-                selective disclosure, and time-based reveals.
+                Revolutionizing digital ownership with encrypted content and
+                selective disclosure.
               </motion.p>
             </div>
             <motion.div
@@ -83,10 +83,10 @@ export function HeroSection() {
                       </span>
                     </div>
                     <h3 className="text-lg font-bold text-foreground">
-                      Obfuscated NFT #1337
+                      Shadow
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Reveal conditions: Time-based unlock in 3 days
+                      A concept NFT showcasing the potential of Sui Shadow
                     </p>
                   </div>
                 </motion.div>

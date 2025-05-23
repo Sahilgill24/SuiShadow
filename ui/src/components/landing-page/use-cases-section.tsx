@@ -24,8 +24,8 @@ const useCases = [
         <circle cx="12" cy="12" r="4" />
       </svg>
     ),
-    title: "Mystery Boxes",
-    description: "Create digital mystery boxes with encrypted contents that reveal themselves only after purchase."
+    title: "Virtual Assets",
+    description: "Digital Assets that can be securely shared and traded , and can hold real world value."
   },
   {
     icon: (
@@ -45,8 +45,8 @@ const useCases = [
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    title: "Time Capsules",
-    description: "Create digital time capsules that reveal content only after a specific date or event, perfect for commemorative releases."
+    title: "NFT Rentals",
+    description: "Imagine renting out your NFTs for a period of time, allowing others to enjoy exclusive content without permanent ownership."
   },
   {
     icon: (
@@ -99,7 +99,7 @@ export function UseCasesSection() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed"
             >
-              Discover how Sui Shadow transforms digital content across various industries.
+              Discover how Sui Shadow transforms digital content across the SUI Blockchain.
             </motion.p>
           </div>
         </FadeUp>

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import axios from "axios";
 import { MerkleTree } from "merkletreejs";
 import SHA256 from "crypto-js/sha256";
+import { AES } from "crypto-js";
 
 
 
@@ -60,8 +61,9 @@ const usePixelRemover = () => {
   const [outputSrc, setOutputSrc] = useState<string | null>(null);
   const [slicedBlocks, setSlicedBlocks] = useState<string[]>([]);
   const [merkleRoot, setMerkleRoot] = useState<string | null>(null);
+  const [DecodedPayload, setDecodedPayload] = useState<any>(null);
   const PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
-
+  const [obfuscatedImage, setObfuscatedImage] = useState<string | null>(null);
   const handleImageUpload = (file?: File) => {
     if (!file) return;
 
@@ -140,12 +142,12 @@ const usePixelRemover = () => {
   const sendToApi = async (payload: { blocks: string[], coords: { x: number, y: number }[], obfuscated: string }) => {
     // This is the Merkle tree root of the coordinates
     console.log("Payload:", payload.coords);
-    const testcoords = [
-      [10, 20],
-      [10, 10],
-      [50, 60],
-      [70, 80]
-    ]
+    // const testcoords = [
+    //   [10, 20],
+    //   [10, 10],
+    //   [50, 60],
+    //   [70, 80]
+    // ]
     // const leaves = payload.coords.map(coord => {
     //   if (coord.x === undefined || coord.y === undefined) {
     //     throw new Error('Invalid coordinate: both x and y are required');
@@ -180,7 +182,13 @@ const usePixelRemover = () => {
     setMerkleRoot(merkleRoot);
     console.log(`\n✨ Merkle Root: ${merkleRoot}`);
 
-    // TODO: Walrus endpt
+    const algorithm = 'aes-256-cbc'; // AES algorithm
+    const key = "mykey"; // 
+    const key2 = crypto.randomUUID();
+    console.log("key2", key2);
+    // Initialization vector
+
+    // the encrypted image being sent;
     const url = `${PUBLISHER}/v1/blobs`;
     const fileBuffer = new Blob([JSON.stringify(payload)], { type: "application/json" });
     const response = await axios({
@@ -194,6 +202,30 @@ const usePixelRemover = () => {
     // this should be our blob id 
     const blobId = response.data.newlyCreated.blobObject.blobId;
     console.log("blobId", response.data.newlyCreated.blobObject.blobId);
+
+    const AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
+    const retrieveurl = `${AGGREGATOR}/v1/blobs/${blobId}`;
+    const response2 = await axios({
+      method: 'get',
+      url: retrieveurl,
+      responseType: 'arraybuffer'
+    });
+
+    console.log("Retrieved data:", response2.data);
+    // Step 1: Convert ArrayBuffer to string
+    const decoder = new TextDecoder("utf-8");
+    const jsonString = decoder.decode(new Uint8Array(response2.data));
+
+    // Step 2: Parse JSON
+    const decodedPayload = JSON.parse(jsonString);
+
+    // Step 3: Use the fields
+
+    setDecodedPayload(decodedPayload);
+    setObfuscatedImage(decodedPayload.obfuscated);
+
+
+
 
   };
 
@@ -213,7 +245,10 @@ const usePixelRemover = () => {
     slicedBlocks,
     handleImageUpload,
     handleDownload,
-    merkleRoot
+    merkleRoot,
+    DecodedPayload,
+    obfuscatedImage
+
   };
 };
 

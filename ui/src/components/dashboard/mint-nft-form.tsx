@@ -21,6 +21,7 @@ import { genAddressSeed, getZkLoginSignature } from "@mysten/zklogin";
 
 
 
+
 export function mintNFT() {
 
 }
@@ -37,65 +38,65 @@ const MintNFTForm = () => {
   const [price, setPrice] = useState("");
   const { accounts, setBalances } = useAuthStore();
   const suiClient = new SuiClient({ url: "https://fullnode.testnet.sui.io:443" });
-  (accounts.map((account) => console.log(account.userAddr)));
-  // account pe send transaction 
-  async function fetchBalances(accounts: AccountData[]) {
-    if (accounts.length === 0) return;
-    const newBalances = new Map<string, number>();
-    for (const account of accounts) {
-      const suiBalance = await suiClient.getBalance({
-        owner: account.userAddr,
-        coinType: "0x2::sui::SUI",
-      });
-      newBalances.set(
-        account.userAddr,
-        +suiBalance.totalBalance / 1_000_000_000
-      );
-    }
-    setBalances(newBalances);
-  }
-  async function sendTransaction(account: AccountData) {
-    const tx = new Transaction();
-    tx.setSender(account.userAddr);
-    const packageid = "0x0b941411e0b96deca6c88f25bff1148759b7deff09666391c33b7d2479b42b00";
-    const module = "nft";
-    const functionName = "mint_to_sender";
-    const args = []
-    tx.moveCall({
-      target: `${packageid}::${module}::${functionName}`,
-      arguments: [tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },)],
-    });
 
-    const ephemeralKeyPair = keypairFromSecretKey(account.ephemeralPrivateKey);
-    const { bytes, signature: userSignature } = await tx.sign({
-      client: suiClient,
-      signer: ephemeralKeyPair,
-    });
-    const addressSeed = genAddressSeed(
-      BigInt(account.userSalt),
-      "sub",
-      account.sub,
-      account.aud
-    ).toString();
-    const { epoch } = await suiClient.getLatestSuiSystemState();
-    const zkLoginSignature = getZkLoginSignature({
-      // @ts-ignore
-      inputs: {
-        ...(typeof account.zkProofs === "object" && account.zkProofs !== null
-          ? account.zkProofs
-          : {}),
-        addressSeed,
-      },
-      maxEpoch: account.maxEpoch,
-      userSignature,
-    });
-    console.log("ZkLogin Signature", zkLoginSignature);
-    const resp = await suiClient
-      .executeTransactionBlock({
-        transactionBlock: bytes,
-        signature: zkLoginSignature,
-        options: { showEffects: true },
-      })
+  // account pe send transaction 
+  // async function fetchBalances(accounts: AccountData[]) {
+  //   if (accounts.length === 0) return;
+  //   const newBalances = new Map<string, number>();
+  //   for (const account of accounts) {
+  //     const suiBalance = await suiClient.getBalance({
+  //       owner: account.userAddr,
+  //       coinType: "0x2::sui::SUI",
+  //     });
+  //     newBalances.set(
+  //       account.userAddr,
+  //       +suiBalance.totalBalance / 1_000_000_000
+  //     );
+  //   }
+  //   setBalances(newBalances);
+  // }
+  async function sendTransaction(account: AccountData) {
+    // const tx = new Transaction();
+    // tx.setSender(account.userAddr);
+    // const packageid = "0x0b941411e0b96deca6c88f25bff1148759b7deff09666391c33b7d2479b42b00";
+    // const module = "nft";
+    // const functionName = "mint_to_sender";
+    // const args = []
+    // tx.moveCall({
+    //   target: `${packageid}::${module}::${functionName}`,
+    //   arguments: [tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },), tx.makeMoveVec({ "elements": [], "type": "u8" },)],
+    // });
+
+    // const ephemeralKeyPair = keypairFromSecretKey(account.ephemeralPrivateKey);
+    // const { bytes, signature: userSignature } = await tx.sign({
+    //   client: suiClient,
+    //   signer: ephemeralKeyPair,
+    // });
+    // const addressSeed = genAddressSeed(
+    //   BigInt(account.userSalt),
+    //   "sub",
+    //   account.sub,
+    //   account.aud
+    // ).toString();
+    // const { epoch } = await suiClient.getLatestSuiSystemState();
+    // const zkLoginSignature = getZkLoginSignature({
+    //   // @ts-ignore
+    //   inputs: {
+    //     ...(typeof account.zkProofs === "object" && account.zkProofs !== null
+    //       ? account.zkProofs
+    //       : {}),
+    //     addressSeed,
+    //   },
+    //   maxEpoch: account.maxEpoch,
+    //   userSignature,
+    // });
+    // console.log("ZkLogin Signature", zkLoginSignature);
+    // const resp = await suiClient
+    //   .executeTransactionBlock({
+    //     transactionBlock: bytes,
+    //     signature: zkLoginSignature,
+    //     options: { showEffects: true },
+    //   })
 
 
 
@@ -115,9 +116,14 @@ const MintNFTForm = () => {
     canvasRef,
     outputSrc,
     handleImageUpload,
-    merkleRoot
+    merkleRoot,
+    DecodedPayload,
+    obfuscatedImage
     // slicedBlocks,
   } = usePixelRemover();
+
+
+
 
   const handleFileChange = (files: File[]) => {
     if (files.length > 0) {
@@ -240,6 +246,8 @@ const MintNFTForm = () => {
           )}
         </div>
       </div>
+
+
       <Button
         type="submit"
         className="w-full mt-4"
@@ -247,6 +255,22 @@ const MintNFTForm = () => {
       >
         Final Publish
       </Button>
+      <div className="grid grid-cols-2 gap-4">
+        {DecodedPayload && DecodedPayload.blocks.map((base64Img: string, index: number) => (
+          <img
+            key={index}
+            src={base64Img}
+            alt={`Block ${index}`}
+            style={{ width: 100, height: 100 }}
+          />
+        ))}
+      </div>
+      {obfuscatedImage && (
+        <div>
+          <h3>Obfuscated Image</h3>
+          <img src={obfuscatedImage} alt="Obfuscated" />
+        </div>
+      )}
     </form>
   );
 };

@@ -307,7 +307,7 @@ function StepThree() {
                       <span className="text-primary">someapes.com/322</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>hash_root:</span>
+                      <span>Merkleroot:</span>
                       <span className="text-primary">0x32dfe268...</span>
                     </div>
                     <div className="flex justify-between">
