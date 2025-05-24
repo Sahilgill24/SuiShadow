@@ -21,7 +21,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import { EnokiClient } from '@mysten/enoki';
 import { getAllowlistedKeyServers, SealClient, SessionKey, type SessionKeyType } from '@mysten/seal';
 import { fromHex, toHex } from '@mysten/sui/utils';
-import axios from "axios";
+import axios, { all } from "axios";
 
 
 
@@ -48,8 +48,8 @@ const MintNFTForm = () => {
   const suiClient = new SuiClient({
     url: "https://fullnode.testnet.sui.io:443",
   });
-  const tx = new Transaction();
   const packagid = '0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25';
+  const allowlist_pckg_id = '0x87e99606517763f4ba82d618e89de5bd88063e49d0c75358bf2af392782f99fd';
   const id = '0x97fad43945130f277532b7891d47a81823d7990af6795b0ec4f9364c474eefda'
   const PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
   const allowlistobject = '0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9' // actually the term allowlist_id 
@@ -62,11 +62,14 @@ const MintNFTForm = () => {
     serverConfigs: getAllowlistedKeyServers('testnet').map((id) => ({ objectId: id, weight: 1 })),
     verifyKeyServers: false,
   });
-  async function encryption(data: string): Promise<any> {
-    const allowbytes = fromHex(allowlistobject);
+
+  const tx = new Transaction();
+  const tx2 = new Transaction();
+  async function encryption(data: string, allowlistid: string): Promise<any> {
     const nonce = Uint8Array.from([1, 2, 3, 4, 5]);
     // can select a random nonce
-    const encryptionid = toHex(new Uint8Array([...allowbytes, ...nonce]))
+    const allowlistidbytes = fromHex(allowlistid);
+    const encryptionid = toHex(new Uint8Array([...allowlistidbytes, ...nonce]))
     const fileData = toUint8array(data)
     const { encryptedObject: encryptedBytes } = await sealnewclient.encrypt({
       threshold: 2,
@@ -74,18 +77,18 @@ const MintNFTForm = () => {
       id: encryptionid,
       data: fileData,
     });
-
+    console.log("Encryption ID:", encryptionid);
     console.log("Encrypted Bytes:", encryptedBytes);
     return encryptedBytes;
   }
 
-  async function uploadtoblob(): Promise<any> {
+  async function uploadtoblob(allowlistObjectId?: string, allowlistid?: string): Promise<any> {
     setMintingStep("Preparing metadata and encrypting data...");
 
     // Add name, description, and merkle root to the DecodedPayload
     // Encrypt the coordinates
     const coordsString = JSON.stringify(DecodedPayload.coords);
-    const encryptedCoords = await encryption(coordsString);
+    const encryptedCoords = await encryption(coordsString, allowlistObjectId ?? "");  // Use allowlist object ID, not cap ID
 
     const payloadWithMetadata = {
       blocks: DecodedPayload.blocks,
@@ -96,13 +99,18 @@ const MintNFTForm = () => {
       enccoords: encryptedCoords,
       url: uploadedImageUrl,
       addres: currentAccount?.address ?? "",
+      price: price,
+      allowlistObjectId: allowlistObjectId || null,
+      allowlistid: allowlistid // Include the allowlist object ID
     };
     console.log("Payload with Metadata:", payloadWithMetadata.enccoords);
     console.log("Payload with Metadata:", payloadWithMetadata.obfuscatedImage);
+    console.log("Allowlist Object ID:", allowlistObjectId);
+    console.log("Allowlist ID:", allowlistid);
 
     setMintingStep("Uploading to Walrus storage...");
 
-    const url = `${PUBLISHER}/v1/blobs`;
+    const url = `${PUBLISHER}/v1/blobs?epochs=5`;
     const fileBuffer = new Blob([JSON.stringify(payloadWithMetadata)], { type: "application/json" });
     const response = await axios({
       method: 'put',
@@ -121,6 +129,9 @@ const MintNFTForm = () => {
   // THis uploads the obfuscated image to the marketplace::store contract
   async function uploadtomarketplace(blob: string) {
     setMintingStep("Creating NFT on blockchain...");
+
+    // Create a fresh transaction for NFT minting
+
 
     // const address = currentAccount?.address ?? "";
     tx.moveCall({
@@ -152,6 +163,121 @@ const MintNFTForm = () => {
       position: "top-right",
     });
   }
+  async function trialfetch() {
+
+    // tx.moveCall({
+    //   target: `${allowlist_pckg_id}::allowlist::create_allowlist_entry`,
+    //   arguments: [tx.pure.string("trial_name")],
+    // })
+    // tx.setGasBudget(1000000000);
+    // const result = await signAndExecuteTransaction({
+    //   transaction: tx,
+    //   chain: 'sui:testnet'
+    // });
+
+    //console.log("Create allowlist transaction executed with digest:", result.digest);
+    const ownedobjects = await client.getOwnedObjects({
+      owner: currentAccount?.address ?? "",
+      options: {
+        showContent: true,
+        showType: true,
+      },
+    });
+
+    const filteredOwnedObjects = ownedobjects.data.filter((obj) => {
+      // Check if the object is an NFT
+      // @ts-ignore
+      // These are the Allowlists of the user
+      if (obj.data?.type == "0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25::allowlist::Cap") {
+        return true;
+      }
+      return false;
+    });
+
+
+
+    return filteredOwnedObjects;
+
+
+  }
+  // Function to create an allowlist for the NFT
+  async function createAllowlist(nftName: string) {
+    if (!nftName.trim()) {
+      throw new Error("NFT name is required for allowlist creation");
+    }
+
+    try {
+
+      tx2.moveCall({
+        target: `${packagid}::allowlist::create_allowlist_entry`,
+        arguments: [tx2.pure.string(nftName)],
+      });
+      tx2.setGasBudget(1000000000);
+
+      const result = await signAndExecuteTransaction({
+        transaction: tx2,
+        chain: 'sui:testnet'
+      });
+
+      console.log("Allowlist created with digest:", result.digest);
+
+      // Wait for blockchain indexing
+      setMintingStep("Waiting for blockchain confirmation...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Fetch the newly created allowlist
+      const objects = await trialfetch();
+      const objects2 = objects
+      // @ts-ignore
+      const objects_allowlist_ids = objects.map(obj => obj.data?.content?.fields?.allowlist_id);
+      console.log("Objects Allowlist IDs:", objects);
+      const final_allowlist_ids = await Promise.all(objects_allowlist_ids.map(async (id) => {
+        // Fetch the full object details for each allowlist ID
+        const allowlistObject = await client.getObject({
+          id: id,
+          options: {
+            showContent: true,
+            showType: true,
+          }
+        });
+        return allowlistObject;
+      }));
+      // Filter objects to find the one with matching name
+      console.log("Allowlist IDs:", final_allowlist_ids);
+      const filteredObjects = final_allowlist_ids.filter((obj) => {
+        // @ts-ignore
+        return obj.data?.content?.fields?.name == nftName;
+      });
+
+      if (filteredObjects.length === 0) {
+        throw new Error("Failed to find created allowlist. Please try again.");
+      }
+
+      // @ts-ignore
+      const allowlistObjectId = filteredObjects[0].data?.objectId;
+      // @ts-ignore
+      const allowlistid = objects2.filter((obj) => obj.data?.content?.fields?.allowlist_id === allowlistObjectId)[0]?.data?.objectId || "";
+      console.log("Allowlist Object ID:", allowlistObjectId);
+      console.log("Allowlist cap:", allowlistid);
+      if (!allowlistObjectId) {
+        throw new Error("Failed to get allowlist object ID");
+      }
+
+      setNewAllowlistid(allowlistObjectId);
+
+      toast.success("Allowlist Created!", {
+        description: `Allowlist for "${nftName}" has been created automatically`,
+        duration: 3000,
+        position: "top-right",
+      });
+
+      return { allowlistObjectId, allowlistid };
+    } catch (error) {
+      console.error("Error creating allowlist:", error);
+      throw new Error("Failed to create allowlist");
+    }
+  }
+
   // can set the return type here to make it easier
   async function fetchBlobs() {
     const blobs = await client.getObject({
@@ -167,80 +293,6 @@ const MintNFTForm = () => {
 
   }
 
-  async function addtoAllowlist(address: string) {
-
-    // tx.moveCall({
-    //   target: `${packagid}::allowlist::create_allowlist_entry`,
-    //   arguments: [tx.pure.string("nft access")],
-    // });
-    // const blobs = await client.getObject({
-    //   id: '0x3e6403d05347b21d05f984bbe2e731b6ac3f7b3581f5d489ebb5cf3af59445b4',
-    //   options: {
-    //     showContent: true,
-    //     showType: true,
-    //   }
-    // })
-
-    // 0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9 allowlist id from this account 
-    //@ts-ignore
-    // console.log('hello', blobs);
-
-    tx.moveCall({
-      target: `${packagid}::allowlist::add`,
-      arguments: [tx.object('0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9'), tx.object('0x3e6403d05347b21d05f984bbe2e731b6ac3f7b3581f5d489ebb5cf3af59445b4'), tx.pure.address(address)],
-    });
-
-    // tx.moveCall({
-    //   target: `${packagid}::allowlist::create_allowlist_entry`,
-    //   arguments: [tx.pure.string("nft access")],
-    // });
-    tx.setGasBudget(1000000000);
-    const result2 = await signAndExecuteTransaction({
-      transaction: tx,
-      chain: 'sui:testnet'
-    });
-    console.log("Transaction executed with digest:", result2);
-
-    // Show toast for allowlist addition
-    toast.success("Address Added to Allowlist!", {
-      description: `Added to Allowlist Succesfully`,
-      action: {
-        label: "SuiScan",
-        onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${result2.digest}`, '_blank')
-      },
-      duration: 4000,
-      position: "top-right",
-    });
-
-    // console.log("Adding to allowlist the address:", address);
-    // const ownedobjects = await client.getOwnedObjects({
-    //   owner: currentAccount?.address ?? "",
-
-    // })
-    // console.log("Owned Objects:", ownedobjects.nextCursor);
-    // setNewAllowlistObject(`${ownedobjects.nextCursor}`);
-    // const allowlistdetail = await client.getObject({
-    //   id: `${ownedobjects.nextCursor}`,
-    //   options: {
-    //     showContent: true,
-    //     showType: true,
-    //   }
-    // })
-    // //@ts-ignore
-    // console.log("Allowlist Details:", allowlistdetail.data?.content?.fields.allowlist_id);
-    // //@ts-ignore
-    // setNewAllowlistid(`${allowlistdetail.data?.content?.fields.allowlist_id}`);
-    // tx.moveCall({
-    //   target: `${packagid}::allowlist::add`,
-    //   arguments: [tx.object(`${newallowlistid}`), tx.object(`${newallowlistobject}`), tx.pure.address(address)],
-    // });
-    // const result = await signAndExecuteTransaction({
-    //   transaction: tx,
-    //   chain: 'sui:testnet'
-    // });
-    // console.log("Transaction executed with digest:", result);
-
-  }
 
   // account pe send transaction
   // async function fetchBalances(accounts: AccountData[]) {
@@ -307,7 +359,14 @@ const MintNFTForm = () => {
     setMintingStep("Starting minting process...");
 
     try {
-      const bob = await uploadtoblob();
+      // Create allowlist first and get its object ID
+      setMintingStep("Creating allowlist for your NFT...");
+      const { allowlistObjectId, allowlistid } = await createAllowlist(name);
+
+      // Upload to blob with allowlist object ID
+      const bob = await uploadtoblob(allowlistObjectId, allowlistid);
+
+      // Mint NFT and upload to marketplace
       await uploadtomarketplace(bob ?? "");
 
       // Reset form after successful mint
@@ -340,7 +399,9 @@ const MintNFTForm = () => {
     merkleRoot,
     DecodedPayload,
     obfuscatedImage,
-    uploadedImageUrl
+    uploadedImageUrl,
+
+
 
     // slicedBlocks,
   } = usePixelRemover();
@@ -366,8 +427,7 @@ const MintNFTForm = () => {
 
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle publish logic here
-
+    finalpublish();
   };
 
   return (
@@ -496,7 +556,6 @@ const MintNFTForm = () => {
           type="submit"
           className="w-full mt-4"
           disabled={!merkleRoot || !image || isMinting}
-          onClick={finalpublish}
         >
           {isMinting ? (
             <div className="flex items-center space-x-2">
@@ -507,6 +566,8 @@ const MintNFTForm = () => {
             "Final Publish"
           )}
         </Button>
+        {/* <Button onClick={trialfetch}>Trial fetch</Button>
+        <Button onClick={async () => await createAllowlist('11')}>Trial create </Button> */}
         <div className="grid grid-cols-2 gap-4">
           {DecodedPayload &&
             DecodedPayload.blocks.map((base64Img: string, index: number) => (

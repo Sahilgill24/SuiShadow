@@ -1,14 +1,7 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Ghost, Plus, ShoppingBag, Wallet } from "lucide-react";
+import { Ghost, Plus, ShoppingBag, Wallet, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
-import { sortOptions, type SortOption } from "@/lib/sample-data";
+import { type SortOption } from "@/lib/sample-data";
 import {
   useAccounts,
   useCurrentAccount,
@@ -25,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDownIcon } from "lucide-react";
 import { shortenAddress } from "@polymedia/suitcase-core";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const tabs = [
   {
@@ -54,8 +49,8 @@ interface HeaderProps {
 export function Header({
   activeTab,
   setActiveTab,
-  sortBy,
-  setSortBy,
+  sortBy: _sortBy,
+  setSortBy: _setSortBy,
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -113,6 +108,16 @@ function AccountInfo() {
     currentAccount?.label ? null : currentAccount?.address
   );
   const accounts = useAccounts();
+  const [copied, setCopied] = useState(false);
+
+  const copyAddress = async () => {
+    if (currentAccount?.address) {
+      await navigator.clipboard.writeText(currentAccount.address);
+      setCopied(true);
+      toast.success("Address copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   if (!currentAccount) return null;
 
@@ -121,7 +126,7 @@ function AccountInfo() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="rounded-full px-4 flex items-center gap-2"
+          className="rounded-full px-4 flex items-center gap-2 hover:bg-accent/50 transition-colors"
         >
           <span className="font-mono font-bold">
             {currentAccount.label ??
@@ -132,6 +137,23 @@ function AccountInfo() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[220px]">
+        <DropdownMenuItem
+          onClick={copyAddress}
+          className="cursor-pointer hover:bg-accent/50 flex items-center gap-2"
+        >
+          {copied ? (
+            <Check className="w-4 h-4 text-green-500" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">Copy Address</span>
+            <span className="text-xs text-muted-foreground font-mono">
+              {shortenAddress(currentAccount.address)}
+            </span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {accounts.map((account) => (
           <DropdownMenuItem
             key={account.address}
@@ -147,8 +169,8 @@ function AccountInfo() {
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          variant="destructive"
           onSelect={() => disconnectWallet()}
+          className="text-destructive focus:text-destructive"
         >
           Disconnect
         </DropdownMenuItem>

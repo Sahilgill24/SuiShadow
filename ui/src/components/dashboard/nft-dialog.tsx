@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { motion } from "framer-motion"
-import { CheckCircle, Copy, Download, Eye, Lock, Shield } from "lucide-react"
+import { CheckCircle, Copy, Download, Lock, Shield } from "lucide-react"
 import type { NFT } from "@/lib/types"
 import SHA256 from "crypto-js/sha256";
 // here the decryption shall be done 
@@ -17,7 +17,7 @@ interface NFTDialogProps {
   isMarketplace?: boolean
 }
 import { fromHex, toHex } from '@mysten/sui/utils';
-import { getAllowlistedKeyServers, SealClient, SessionKey, type SessionKeyType } from '@mysten/seal';
+import { getAllowlistedKeyServers, SealClient, SessionKey } from '@mysten/seal';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSignPersonalMessage, useSuiClientContext } from "@mysten/dapp-kit"
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client"
 import { Transaction } from "@mysten/sui/transactions"
@@ -29,16 +29,18 @@ function toUint8array(val: string) {
   const encodedbytes = encoder.encode(val);
   return encodedbytes;
 }
+
 // adding the buying address to the allowlist and this person can then decrypt the data and reconstruct the image .
 export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFTDialogProps) {
   const [proof, setProof] = useState<string | null>(null)
   const [showProof, setShowProof] = useState(false)
   const [isBuying, setIsBuying] = useState(false)
+  const [escrowpayed, setEscrowPayed] = useState(false)
   const tx = new Transaction();
   const tx2 = new Transaction();
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
-  const { client, network } = useSuiClientContext();
+  const { client } = useSuiClientContext();
   const [decryptedcoords, setDecryptedCoords] = useState<any>(null);
   const [reconstructedImage, setReconstructedImage] = useState<string | null>(null);
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
@@ -46,10 +48,11 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const id = '0x97fad43945130f277532b7891d47a81823d7990af6795b0ec4f9364c474eefda'
   const currentaccount = useCurrentAccount();
 
-  const allowlistobject = '0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9'
+
   const packagid = '0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25';
   const escrowpkgid = '0x076f4f1f07cc41180507a25cfaa42d57e01b93930f0c0c349d11758b5f01ff72'
   const escrowonject = '0xa07fe0d5fb6edb5a6712aeac97e587ae728697e44188038fccbba0790d8960a4'
+  const allowlist_pckg_id = '0x87e99606517763f4ba82d618e89de5bd88063e49d0c75358bf2af392782f99fd'
 
   const sealnewclient = new SealClient({
     //@ts-ignore
@@ -250,6 +253,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
         onClick: () => window.open(`https://suiscan.xyz/testnet/tx/${val.digest}`, '_blank')
       },
     });
+    setEscrowPayed(true);
     return val.digest;
 
   }
@@ -287,12 +291,16 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     });
 
 
-
+    const allowlistid = fetchedData.allowlistid;
+    const allowlistobjectid = fetchedData.allowlistObjectId;
+    console.log("Allowlist ID cap:", allowlistid);
+    console.log("Allowlist Object ID:", allowlistobjectid);
 
     // console.log("Transaction executed with digest:", digest);
     // now the logic for decryption shall come here . 
     // the user would have to be manually added to the allowlist by the owner of the NFT
-    const allowbytes = fromHex(allowlistobject);
+    const allowbytes = fromHex(allowlistobjectid);  // Use allowlist object ID, not cap ID
+
     const nonce = Uint8Array.from([1, 2, 3, 4, 5]);
     const encryptionid = toHex(new Uint8Array([...allowbytes, ...nonce]))
     // const string = 'blobidheregn';
@@ -303,21 +311,21 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     //   id: encryptionid,
     //   data: fileData,
     // });
-
+    console.log("Encryption ID:", encryptionid);
     // console.log("Encrypted bytes:", encryptedBytes);
     const SUI_NETWORK = "testnet";
     console.log(currentaccount?.address,);
 
+    // Create a new session key
+    console.log("Creating new session key...");
     const session_key = await SessionKey.create({
       address: currentaccount?.address || '',
       packageId: packagid,
       ttlMin: 20,
       suiClient: new SuiClient({ url: getFullnodeUrl(SUI_NETWORK) }),
-    })
+    });
 
-
-
-    const message = session_key.getPersonalMessage()
+    const message = session_key.getPersonalMessage();
     const signResult = await new Promise((resolve, reject) => {
       signPersonalMessage(
         { message: message },
@@ -328,16 +336,15 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
       );
     });
 
-
     //@ts-ignore
     console.log("Sign result:", signResult.signature);
     // @ts-ignore
-    await session_key.setPersonalMessageSignature(signResult.signature)
+    await session_key.setPersonalMessageSignature(signResult.signature);
     tx.moveCall({
       target: `${packagid}::allowlist::seal_approve`,
       arguments: [
         tx.pure.vector('u8', fromHex(encryptionid)),
-        tx.object(allowlistobject)
+        tx.object(allowlistobjectid)  // Use allowlist object ID, not cap ID
       ],
     });
     console.log(fetchedData.enccoords);
@@ -350,91 +357,68 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     const txbytes = await tx.build({ client, onlyTransactionKind: true })
 
     try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const decrypteddata = await sealnewclient.decrypt({
         data: uint8,
         sessionKey: session_key,
         txBytes: txbytes,
-
       });
+
       toast.success("Decryption successful!", {
         description: "The image has been successfully decrypted.",
         duration: 4000,
         position: "top-right",
       });
+
+      if (decrypteddata) {
+        const decoder = new TextDecoder("utf-8");
+        const jsonString = decoder.decode(new Uint8Array(decrypteddata));
+        const decodedPayload = JSON.parse(jsonString);
+        setDecryptedCoords(decodedPayload);
+        console.log("Decrypted Payload:", decodedPayload);
+
+        if (merklerootverification(nft.merkleroot, decodedPayload)) {
+          const blocks = fetchedData.blocks;
+          const obfuscatedUrl = fetchedData.obfuscatedImage;
+
+          // Verify that blocks and coordinates are valid arrays
+          if (Array.isArray(blocks) && Array.isArray(decodedPayload)) {
+            console.log("Starting image reconstruction with:", {
+              blockCount: blocks.length,
+              coordCount: decodedPayload.length
+            });
+
+            const imageResult = await reconstructImage(obfuscatedUrl, blocks, decodedPayload);
+            setReconstructedImage(imageResult);
+            console.log("Image reconstructed successfully!");
+            toast.success("Image reconstructed successfully!", {
+              description: "The image has been successfully reconstructed.",
+              duration: 5000,
+              position: "top-left",
+            });
+          } else {
+            console.error("Invalid data for reconstruction:", {
+              blocksIsArray: Array.isArray(blocks),
+              coordsIsArray: Array.isArray(decodedPayload),
+              blocks: blocks,
+              coords: decodedPayload
+            });
+            toast.error("Invalid data for image reconstruction!", {
+              description: "The blocks or coordinates data is not in the expected format.",
+              duration: 1000,
+              position: "top-left",
+            });
+          }
+        }
+      }
     } catch (error) {
       console.error("Decryption error:", error);
       toast.error("Decryption failed!", {
-        description: "No Access error,user does not have one or more keys",
+        description: "No Access error, user does not have one or more keys",
         duration: 4000,
         position: "top-right",
       });
-    }
-    const decrypteddata = await sealnewclient.decrypt({
-      data: uint8,
-      sessionKey: session_key,
-      txBytes: txbytes,
-
-    });
-
-    if (decrypteddata) {
-      toast.success("Decryption successful!", {
-        description: "The image has been successfully decrypted.",
-        duration: 4000,
-        position: "top-right",
-      });
-    }
-    else {
-      toast.error("Decryption failed!", {
-        description: "No Access error,user does not have one or more keys",
-        duration: 4000,
-        position: "top-right",
-      });
-      return;
-    }
-
-    console.log("Decrypted data:", decrypteddata);
-    let string2 = new TextDecoder().decode(decrypteddata);
-    console.log("Decrypted string:", string2);
-    const parsedCoords = JSON.parse(string2);
-    setDecryptedCoords(parsedCoords);
-
-    if (merklerootverification(nft.merkleroot, parsedCoords)) {
-      const blocks = fetchedData.blocks;
-      const obfuscatedUrl = fetchedData.obfuscatedImage;
-
-      // Verify that blocks and coordinates are valid arrays
-      if (Array.isArray(blocks) && Array.isArray(parsedCoords)) {
-        console.log("Starting image reconstruction with:", {
-          blockCount: blocks.length,
-          coordCount: parsedCoords.length
-        });
-
-        const imageResult = await reconstructImage(obfuscatedUrl, blocks, parsedCoords);
-        setReconstructedImage(imageResult);
-        console.log("Image reconstructed successfully!");
-        toast.success("Image reconstructed successfully!", {
-          description: "The image has been successfully reconstructed.",
-          duration: 5000,
-          position: "top-left",
-        });
-
-
-
-
-      } else {
-        console.error("Invalid data for reconstruction:", {
-          blocksIsArray: Array.isArray(blocks),
-          coordsIsArray: Array.isArray(parsedCoords),
-          blocks: blocks,
-          coords: parsedCoords
-        });
-        toast.error("Invalid data for image reconstruction!", {
-          description: "The blocks or coordinates data is not in the expected format.",
-          duration: 1000,
-          position: "top-left",
-        });
-
-      }
+      return; // Exit early on error
     }
 
   }
@@ -680,7 +664,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
                 <div className="space-y-2">
 
                   <Button className='w-full' onClick={async () => await completepayment(account?.address || '0xb9fedd0c0027963e53e7b0ba00d56034bfacea29f06a0adb8cbeddf83b61eaca', nft.name)}>Pay to escrow</Button>
-                  {isMarketplace && <Button onClick={handleBuy} className="w-full">
+                  {isMarketplace && <Button onClick={async () => { { await handleBuy() } }} className="w-full" disabled={!escrowpayed}>
                     {isBuying ? "Processing..." : `Complete Purchase`}
                   </Button>}
 
