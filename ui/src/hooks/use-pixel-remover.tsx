@@ -59,6 +59,7 @@ const usePixelRemover = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outputSrc, setOutputSrc] = useState<string | null>(null);
   const [slicedBlocks, setSlicedBlocks] = useState<string[]>([]);
+  const [merkleRoot, setMerkleRoot] = useState<string | null>(null);
   const PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
 
   const handleImageUpload = (file?: File) => {
@@ -176,6 +177,7 @@ const usePixelRemover = () => {
 
     // 2️⃣ Step: Manually compute the Merkle root
     const merkleRoot = computeMerkleRoot(leaves);
+    setMerkleRoot(merkleRoot);
     console.log(`\n✨ Merkle Root: ${merkleRoot}`);
 
     // TODO: Walrus endpt
@@ -191,12 +193,7 @@ const usePixelRemover = () => {
     });
     // this should be our blob id 
     const blobId = response.data.newlyCreated.blobObject.blobId;
-    console.log("Response from API:", response.data.newlyCreated.blobObject.blobId);
-
-
-
-
-
+    console.log("blobId", response.data.newlyCreated.blobObject.blobId);
 
   };
 
@@ -216,6 +213,7 @@ const usePixelRemover = () => {
     slicedBlocks,
     handleImageUpload,
     handleDownload,
+    merkleRoot
   };
 };
 

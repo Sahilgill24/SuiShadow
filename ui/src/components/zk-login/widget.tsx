@@ -186,9 +186,12 @@ export const ZkLogin: React.FC<{
     ]);
   }
 
+  
   async function sendTransaction(account: AccountData) {
     const tx = new Transaction();
     tx.setSender(account.userAddr);
+
+  
     const ephemeralKeyPair = keypairFromSecretKey(account.ephemeralPrivateKey);
     const { bytes, signature: userSignature } = await tx.sign({
       client: suiClient,
@@ -201,6 +204,7 @@ export const ZkLogin: React.FC<{
       account.aud
     ).toString();
     const zkLoginSignature = getZkLoginSignature({
+      // @ts-ignore
       inputs: {
         ...(typeof account.zkProofs === "object" && account.zkProofs !== null
           ? account.zkProofs
