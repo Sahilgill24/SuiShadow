@@ -179,28 +179,13 @@ The system is divided into four logical layers:
 Building a “pay‐to‐reveal” NFT system involved tackling several nontrivial hurdles:
 
 1. **Secure Key Management**  
-   - **Problem**: The symmetric AES key that encrypts every tile must remain secret until the buyer pays.  
-   - **Solution**: We built a dedicated **Key‐Server Contract** on Sui. By leveraging `Sui::seal()` (Sui Seal) for secure on‐chain randomness, we can generate unpredictable 256-bit secrets. However, we cannot store that key in plain text for everyone to read. Instead, the contract only releases the key (encrypted under the buyer’s public address) after verifying a valid payment.  
-   - **Trade‐Off**: Once the buyer has the key, they can store the fully‐decrypted image forever. If you wanted a time‐limited “rental” model, you’d need an entirely different, streaming‐based approach.
+   Implementing key management with Sui’s Seal was a steep learning curve, as it was my first time leveraging on-chain randomness for AES key generation. Figuring out how to call `Sui::seal()` correctly, securely store the derived key, and only release it to authorized buyers required careful study of Sui’s documentation and iterative testing to avoid leaks or misuse.
 
 2. **Merkle Tree Integrity**  
-   - **Problem**: How do we prove, on‐chain, that the encrypted blocks fetched from Walrus are exactly the ones the seller committed to? We cannot store gigabytes of ciphertext in Sui.  
-   - **Solution**: We split the image into \(N\) blocks, compute `leaf_hash_i = SHA-256(ciphertext_i)`, then build a standard Merkle tree. Only the 32-byte root is stored in the NFT’s `merkle_root` field. Buyers fetch each ciphertext, hash it, and run a Merkle proof check against the on‐chain root. If anything is tampered with or missing, the proof fails.  
-   - **Trade‐Off**: Verifying a Merkle proof on‐chain costs about \(O(\log N)\) hash operations. If you used a huge \(N\) (e.g., 1024 × 1024 tiles), gas could grow. We typically pick a modest tile count (256–1024) to balance granularity vs. proof size.
+   Integrating a Merkle tree on the front end proved challenging because very few JavaScript libraries support full Merkle proof construction and verification in-browser. To ensure every encrypted tile could be verified against the on-chain root, I ended up writing a custom Merkle implementation—manually handling leaf hashing, proof generation, and root comparison—so that buyers’ browsers could independently confirm data integrity before decryption.
 
-3. **Off‐Chain Storage Durability**  
-   - **Problem**: If a seller uploads ciphertexts to Walrus but never “pins” them, the data might be garbage‐collected. A future buyer might pay for an NFT that no longer has retrievable ciphertext—in effect, a “bricked” purchase.  
-   - **Solution**: We enforce a “pin‐on‐mint” policy. When the seller calls `mint_to_sender`, the backend immediately pins the blob in Walrus. We also incentivize sellers to keep a small “maintenance escrow” of SUI that gets slashed if their blob is unavailable.  
-   - **Trade‐Off**: This introduces a slight UX friction—sellers must maintain a minimal SUI deposit for pinning fees. But without it, the off‐chain data could vanish.
-
-4. **Freemium / Preview Experience**  
-   - **Problem**: A fully blacked‐out or “missing‐image” preview does not entice many buyers. We wanted a “freemium” model: let them see a low‐res thumbnail or a heavily‐watermarked version so they know what they’ll get.  
-   - **Solution**:  
-     1. Generate a 200×200 thumbnail that is simply a JPEG/PNG—and compute its SHA-256 hash.  
-     2. Include `preview_hash` in the NFT metadata.  
-     3. Marketplaces display the thumbnail (since its hash can be verified on‐chain).  
-     4. Only after purchase is the buyer allowed to decrypt high‐res tiles.  
-   - **Trade‐Off**: Storing that thumbnail and its hash on‐chain costs ~32 additional bytes. However, it significantly improves conversion rates by letting buyers preview legitimate artwork.
+3. **Freemium / Preview Experience**  
+   Striking a balance between hiding most of the artwork and showing enough for a convincing preview was tricky. Since users can’t see the full image before purchase, they can’t fully judge its quality or appeal. I had to experiment with which pixels or regions to leave unobfuscated (so the preview remains recognizable) while still encrypting the critical coordinates. Ensuring that those preview tiles didn’t compromise the encrypted data required careful block selection and coordinate extraction so that the hidden portions stayed secure yet enticing.  
 
 ---
 
