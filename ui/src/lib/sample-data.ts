@@ -3,7 +3,7 @@ import type { NFT } from "./types";
 export const marketplaceNFTs: NFT[] = [
   {
     id: "1",
-    name: "Obfuscated Ape #1337",
+    name: "test",
     creator:
       "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
     metadata: {
@@ -13,7 +13,7 @@ export const marketplaceNFTs: NFT[] = [
     },
     merkleroot:
       "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-    image: "/monkey.jpg",
+    image: "/download.png",
     isObfuscated: "true",
   },
   {
