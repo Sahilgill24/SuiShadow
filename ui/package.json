@@ -10,11 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mysten/dapp-kit": "^0.16.4",
+    "@mysten/dapp-kit": "^0.16.11",
     "@mysten/enoki": "^0.6.13",
-    "@mysten/seal": "^0.4.5",
-    "@mysten/sui": "^1.30.0",
-    "@mysten/zklogin": "^0.7.3",
+    "@mysten/seal": "^0.4.12",
+    "@mysten/sui": "^1.32.0",
     "@polymedia/suitcase-core": "^0.0.54",
     "@polymedia/suitcase-react": "^0.0.54",
     "@radix-ui/react-dialog": "^1.1.14",

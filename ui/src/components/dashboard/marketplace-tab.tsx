@@ -28,7 +28,7 @@ export function MarketplaceTab({ nfts, isLoading }: MarketplaceTabProps) {
       }
     })
     //@ts-ignore
-    console.log('hello', blobs.data?.content?.fields.blobs);
+    console.log('fetching blobs from marketplace', blobs.data?.content?.fields.blobs);
     //@ts-ignore
     return blobs.data?.content?.fields.blobs || [];
   }

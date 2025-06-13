@@ -39,7 +39,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const [showProof, setShowProof] = useState(false)
   const [isBuying, setIsBuying] = useState(false)
   const tx = new Transaction();
-  const [decodedData, setDecodedData] = useState<any>(null);
+  const tx2 = new Transaction();
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   const { client, network } = useSuiClientContext();
@@ -47,7 +47,6 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const [reconstructedImage, setReconstructedImage] = useState<string | null>(null);
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
-  const paymentpckgid = '0xe9f2dc97c3afc7ff4c42fb105eba43bebddc36ff88cf337693f00d84fd0d8595';
   const id = '0x97fad43945130f277532b7891d47a81823d7990af6795b0ec4f9364c474eefda'
   const currentaccount = useCurrentAccount();
 
@@ -58,7 +57,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
   const sealnewclient = new SealClient({
     //@ts-ignore
     suiClient: suiClient,
-    serverObjectIds: getAllowlistedKeyServers('testnet').map(id => [id, 1] as [string, number]),
+    serverConfigs: getAllowlistedKeyServers('testnet').map((id) => ({ objectId: id, weight: 1 })),
     verifyKeyServers: false,
   });
   async function fetchBlobs(): Promise<string[]> {
@@ -70,7 +69,7 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
       }
     })
     //@ts-ignore
-    console.log('hello', blobs.data?.content?.fields.blobs);
+    console.log('fetching blobs from marketplace', blobs.data?.content?.fields.blobs);
     //@ts-ignore
     return blobs.data?.content?.fields.blobs || [];
   }
@@ -120,10 +119,9 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
         continue;
       }
 
-      // 3. If decoded data matches the NFT name, set state and return immediately
+      // 3. If decoded data matches the NFT name, return it immediately
       if (decodedData && decodedData.name === nft?.name) {
         console.log("Found matching NFT data:", decodedData);
-        setDecodedData(decodedData);
         return decodedData;
       }
     }
@@ -135,15 +133,6 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
 
   if (!nft) return null
 
-  const handleVerify = async () => {
-    setIsVerifying(true)
-    // Simulate verification process
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const generatedProof = generateProof()
-    setProof(generatedProof)
-    setIsVerifying(false)
-    setShowProof(true)
-  }
   // @ts-ignore
   async function reconstructImage(obfuscatedUrl: any, blocks: any, coords: any) {
     if (!Array.isArray(blocks) || !Array.isArray(coords)) {
@@ -204,9 +193,26 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     // 5. Export the reconstructed image as a data-URL (PNG)
     return canvas.toDataURL("image/png");
   }
+
+  const payment = async (input: string) => {
+    const coin = tx2.splitCoins(tx2.gas, [150000000])
+    tx2.transferObjects([coin], tx2.pure.address(input));
+    const { digest } = await signAndExecuteTransaction({
+      transaction: tx2,
+      chain: 'sui:testnet'
+    });
+    console.log("payment transaction:", digest);
+
+  }
   const handleBuy = async () => {
-    await NFTfinder();
-    console.log("Decoded Data:", decodedData);
+    const fetchedData = await NFTfinder();
+    console.log("Decoded Data:", fetchedData);
+
+    if (!fetchedData) {
+      console.error("Failed to fetch NFT data");
+      return;
+    }
+
     // here we are buying
     // Here you would typically handle the actual purchase
     // const tokenid = await client.getCoins({
@@ -218,10 +224,8 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     //   arguments: [tx.object(tokenid.data?.[0].coinObjectId), tx.pure.u64(1), tx.pure.address('0x2fe3170d48e0d81e2634ae644e064e261bf36159f5733afc89c2b53f2a3600e3')],
     // })
 
-    // const { digest } = await signAndExecuteTransaction({
-    //   transaction: tx,
-    //   chain: 'sui:testnet'
-    // });
+    payment(fetchedData.addres)
+
     // console.log("Transaction executed with digest:", digest);
     // now the logic for decryption shall come here . 
     // the user would have to be manually added to the allowlist by the owner of the NFT
@@ -240,17 +244,16 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     // console.log("Encrypted bytes:", encryptedBytes);
     const SUI_NETWORK = "testnet";
     console.log(currentaccount?.address,);
-    //@ts-ignore
-    const session_key = new SessionKey({
+
+    const session_key = await SessionKey.create({
       address: currentaccount?.address || '',
       packageId: packagid,
       ttlMin: 20,
-      ...(SUI_NETWORK === "testnet" && {
-        client: new SuiGraphQLClient({
-          url: 'https://sui-testnet.mystenlabs.com/graphql',
-        }),
-      })
-    });
+      suiClient: new SuiClient({ url: getFullnodeUrl(SUI_NETWORK) }),
+    })
+
+
+
     const message = session_key.getPersonalMessage()
     const signResult = await new Promise((resolve, reject) => {
       signPersonalMessage(
@@ -274,12 +277,12 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
         tx.object(allowlistobject)
       ],
     });
-    console.log(decodedData.enccoords);
+    console.log(fetchedData.enccoords);
 
-    const len = Object.keys(decodedData.enccoords).length;
+    const len = Object.keys(fetchedData.enccoords).length;
     const uint8 = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-      uint8[i] = decodedData.enccoords[i];
+      uint8[i] = fetchedData.enccoords[i];
     }
     const txbytes = await tx.build({ client, onlyTransactionKind: true })
     const decrypteddata = await sealnewclient.decrypt({
@@ -296,8 +299,8 @@ export function NFTDialog({ nft, open, onOpenChange, isMarketplace = true }: NFT
     setDecryptedCoords(parsedCoords);
 
     if (merklerootverification(nft.merkleroot, parsedCoords)) {
-      const blocks = decodedData.blocks;
-      const obfuscatedUrl = decodedData.obfuscatedImage;
+      const blocks = fetchedData.blocks;
+      const obfuscatedUrl = fetchedData.obfuscatedImage;
 
       // Verify that blocks and coordinates are valid arrays
       if (Array.isArray(blocks) && Array.isArray(parsedCoords)) {

@@ -37,6 +37,8 @@ const MintNFTForm = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [allowlistaddress, setAllowlistAddress] = useState("");
+  const [newallowlistid, setNewAllowlistid] = useState("");
+  const [newallowlistobject, setNewAllowlistObject] = useState("");
   const currentAccount = useCurrentAccount();
   const accounts = useAccounts();
   const suiClient = new SuiClient({
@@ -45,7 +47,6 @@ const MintNFTForm = () => {
   const tx = new Transaction();
   const packagid = '0x576ce6f9227b55f93844988881ecb53c74c8ffcbd5e7ecf6be8624d2ebd47f25';
   const id = '0x97fad43945130f277532b7891d47a81823d7990af6795b0ec4f9364c474eefda'
-  const allowlist_id = '0x6712d543fb6687a1779168a191c6afaa45eab974c853b5e9ed36d12088723c19';
   const PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
   const allowlistobject = '0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9' // actually the term allowlist_id 
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
@@ -54,7 +55,7 @@ const MintNFTForm = () => {
   const sealnewclient = new SealClient({
     //@ts-ignore
     suiClient: client,
-    serverObjectIds: getAllowlistedKeyServers('testnet').map(id => [id, 1] as [string, number]),
+    serverConfigs : getAllowlistedKeyServers('testnet').map( (id) => ({objectId: id, weight : 1})),
     verifyKeyServers: false,
   });
   async function encryption(data: string): Promise<any> {
@@ -111,7 +112,7 @@ const MintNFTForm = () => {
 
   // THis uploads the obfuscated image to the marketplace::store contract
   async function uploadtomarketplace(blob: string) {
-
+    // const address = currentAccount?.address ?? "";
     tx.moveCall({
       arguments: [tx.pure.vector('u8', toUint8array(`${name}`)), tx.pure.vector('u8', toUint8array(`${description}`)), tx.pure.vector('u8', toUint8array(`${uploadedImageUrl}`)), tx.pure.vector('u8', toUint8array(`${merkleRoot}`))],
       target: `${packagid}::nft::mint_to_sender`,
@@ -120,11 +121,19 @@ const MintNFTForm = () => {
       target: `${packagid}::store::add_blob`,
       arguments: [tx.object(id), tx.pure.vector('u8', toUint8array(blob))],
     })
+
+    tx.moveCall({
+      target: `${packagid}::allowlist::create_allowlist_entry`,
+      arguments: [tx.pure.string("nft access")],
+    });
+
     const result = await signAndExecuteTransaction({
       transaction: tx,
       chain: 'sui:testnet',
     });
     console.log("Transaction executed with digest:", result.digest);
+
+
 
   }
   // can set the return type here to make it easier
@@ -137,7 +146,7 @@ const MintNFTForm = () => {
       }
     })
     //@ts-ignore
-    console.log('hello', blobs.data?.content?.fields.blobs);
+    console.log('fetching blobs', blobs.data?.content?.fields.blobs);
 
 
   }
@@ -164,12 +173,46 @@ const MintNFTForm = () => {
       target: `${packagid}::allowlist::add`,
       arguments: [tx.object('0xf1d9d6e67c41ee455155d80f56d94b404395a1aa88a5a77783cfe691e9018ef9'), tx.object('0x3e6403d05347b21d05f984bbe2e731b6ac3f7b3581f5d489ebb5cf3af59445b4'), tx.pure.address(address)],
     });
-    const result = await signAndExecuteTransaction({
+
+    // tx.moveCall({
+    //   target: `${packagid}::allowlist::create_allowlist_entry`,
+    //   arguments: [tx.pure.string("nft access")],
+    // });
+    tx.setGasBudget(1000000000); 
+    const result2 = await signAndExecuteTransaction({
       transaction: tx,
       chain: 'sui:testnet'
     });
-    console.log("Transaction executed with digest:", result);
+    console.log("Transaction executed with digest:", result2);
 
+
+    // console.log("Adding to allowlist the address:", address);
+    // const ownedobjects = await client.getOwnedObjects({
+    //   owner: currentAccount?.address ?? "",
+
+    // })
+    // console.log("Owned Objects:", ownedobjects.nextCursor);
+    // setNewAllowlistObject(`${ownedobjects.nextCursor}`);
+    // const allowlistdetail = await client.getObject({
+    //   id: `${ownedobjects.nextCursor}`,
+    //   options: {
+    //     showContent: true,
+    //     showType: true,
+    //   }
+    // })
+    // //@ts-ignore
+    // console.log("Allowlist Details:", allowlistdetail.data?.content?.fields.allowlist_id);
+    // //@ts-ignore
+    // setNewAllowlistid(`${allowlistdetail.data?.content?.fields.allowlist_id}`);
+    // tx.moveCall({
+    //   target: `${packagid}::allowlist::add`,
+    //   arguments: [tx.object(`${newallowlistid}`), tx.object(`${newallowlistobject}`), tx.pure.address(address)],
+    // });
+    // const result = await signAndExecuteTransaction({
+    //   transaction: tx,
+    //   chain: 'sui:testnet'
+    // });
+    // console.log("Transaction executed with digest:", result);
 
   }
 

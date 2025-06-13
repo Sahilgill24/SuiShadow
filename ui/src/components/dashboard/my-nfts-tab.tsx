@@ -24,7 +24,7 @@ export function MyNFTsTab({ nfts, isLoading }: MyNFTsTabProps) {
       }
     })
     //@ts-ignore
-    console.log('hello', blobs.data?.content?.fields.blobs);
+    console.log('fetching blobs from marketplace', blobs.data?.content?.fields.blobs);
     //@ts-ignore
     return blobs.data?.content?.fields.blobs || [];
   }
@@ -55,47 +55,47 @@ export function MyNFTsTab({ nfts, isLoading }: MyNFTsTabProps) {
         const blobIds = await fetchBlobs();
         const blobarray = blobIds.reverse();
 
-        const decodedNfts = await Promise.all(
-          blobIds.slice(0,12)
-            .filter(async (blobId) => {
-              try {
-                const decoded = await decoding(blobId);
-                return decoded.addres === currentaddress?.address;
-              } catch {
-                return false;
-              }
-            })
-            .map(async (blobId, idx) => {
-              let decoded;
-              try {
-                decoded = await decoding(blobId);
-              } catch (err) {
-                // Use base values if decoding fails
-                decoded = {
-                  name: `NFT #${idx + 1}`,
-                  creator: "0x0000000000000000000000000000000000000000",
-                  description: "standard",
-                  price: 1,
-                  merkleRoot: "",
-                  obfuscatedImage: "/monkey.jpg"
-                };
-              }
-              return {
-                id: String(idx + 1),
-                name: decoded.name || `NFT #${idx + 1}`,
-                creator: decoded.addres || "0x0000000000000000000000000000000000000000",
-                metadata: {
-                  description: decoded.description || "NFT Minted",
-                  price: decoded.price || 1.5,
-                },
-                merkleroot: decoded.merkleRoot || "",
-                image: decoded.obfuscatedImage || decoded.url || "/download.png",
-                isObfuscated: "true",
+        // First, decode all NFTs and filter by current address
+        const allDecodedNfts = await Promise.all(
+          blobIds.slice(0, 12).map(async (blobId, idx) => {
+            let decoded;
+            try {
+              decoded = await decoding(blobId);
+            } catch (err) {
+              // Use base values if decoding fails
+              decoded = {
+                name: `NFT #${idx + 1}`,
+                creator: "0x0000000000000000000000000000000000000000",
+                addres: "0x0000000000000000000000000000000000000000",
+                description: "standard",
+                price: 1,
+                merkleRoot: "",
+                obfuscatedImage: "/monkey.jpg"
               };
-            })
+            }
+            return {
+              id: String(idx + 1),
+              name: decoded.name || `NFT #${idx + 1}`,
+              creator: decoded.addres,
+              metadata: {
+                description: decoded.description || "NFT Minted",
+                price: decoded.price || 1.5,
+              },
+              merkleroot: decoded.merkleRoot || "",
+              image: decoded.obfuscatedImage || decoded.url || "/download.png",
+              isObfuscated: "true",
+              ownerAddress: decoded.addres, // Store the owner address for filtering
+            };
+          })
         );
 
-        setMarketplaceNfts(decodedNfts);
+        // Filter NFTs to show only those owned by the current address
+        const ownedNfts = allDecodedNfts.filter(nft => {
+          console.log("Filtering - current address:", currentaddress?.address, "NFT owner:", nft.ownerAddress);
+          return nft.ownerAddress === currentaddress?.address;
+        });
+
+        setMarketplaceNfts(ownedNfts);
       } catch (e) {
         setMarketplaceNfts([]);
       }
@@ -108,7 +108,7 @@ export function MyNFTsTab({ nfts, isLoading }: MyNFTsTabProps) {
       <HeroSection
         badge="My Collection"
         title="Your NFT Collection"
-        description="Manage and view your owned confidential NFTs with full access to revealed content and ownership proofs."
+        description="View and manage your owned confidential NFTs. Only NFTs owned by your current address are displayed here with full access to revealed content and ownership proofs."
       />
       <div className="container mx-auto px-4 md:px-6 pb-12">
         <NFTGrid
