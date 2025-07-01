@@ -4,6 +4,8 @@
 <center><img src="./images/shadow-logo.png" size=600*600></center>
 
 
+> This Project came 4th in the <a href="https://blog.sui.io/2025-sui-overflow-hackathon-winners/#cryptography">cryptography track</a> of the SuiOverflow25 Hackathon. 
+
 > Sui Shadow is an innovative, privacy-first art platform built on the SUI blockchain, where artists encrypt their work into hidden tiles and mint suspense-filled NFTs. Powered by Key encryption security from Sui `Seal`, each artwork is encrypted using `SUI Seal`and released only to legitimate buyers. All encrypted chunks live off-chain in `Walrus`, keeping gas costs minimal and storage unlimited. The artists identity is verified using `zklogin` as the log-in option on the app . Perfect for creators who want to monetize secret reveals and collectors craving exclusive digital treasures, Sui Shadow turns every purchase into a thrilling unmasking experience backed by robust blockchain security.
 
 > Link to <a href="https://pitch.com/v/sui-shadow-ifc697/37f3604a-d0f2-40ea-95b5-4fac4e79fe88"> Pitch deck </a><br>
